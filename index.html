@@ -1,15 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orb Agent</title>
-    <style>
-        body { margin: 0; background: #0a0a14; display: grid; place-items: center; height: 100vh; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orb Agent</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+     background:
+  radial-gradient(circle at 25% 35%, rgba(40, 90, 255, 0.55), transparent 45%),
+  radial-gradient(circle at 75% 65%, rgba(0, 210, 255, 0.4), transparent 45%),
+  #111111;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 80px;
+      font-family: system-ui, sans-serif;
+    }
+
+    .orb {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 33% 25%,
+    rgba(255, 55, 255, 0.35) 0%,
+    rgba(25, 255, 25, 0.06) 35%,
+    rgba(80, 16, 255, 0.12) 65%,
+    rgba(20, 70, 10, 0.4) 100%);
+  backdrop-filter: blur(8px) saturate(1.6);
+  -webkit-backdrop-filter: blur(8px) saturate(1.6);
+  background:
+  radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 30%),
+  radial-gradient(circle at 62% 90%, rgba(120, 210, 255, 0.55) 0%, rgba(120, 210, 255, 0) 40%),
+  radial-gradient(circle at 35% 30%, rgba(120, 190, 255, 0.22) 0%, rgba(30, 90, 220, 0.3) 50%, rgba(5, 20, 80, 0.75) 100%);
+  box-shadow:
+  inset -20px -26px 45px rgba(0, 10, 60, 0.6),
+  inset 14px 14px 30px rgba(190, 230, 255, 0.35),
+  0 0 60px rgba(60, 140, 255, 0.35),
+  0 30px 50px rgba(0, 10, 50, 0.55);
+  transition: box-shadow 0.6s ease;
+}
+
+/* soft blue light drifting inside the glass */
+.orb::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    transparent, rgba(90, 190, 255, 0.55), transparent 35%,
+    rgba(60, 120, 255, 0.5), transparent 75%);
+  filter: blur(18px);
+  animation: spin 9s linear infinite;
+}
+
+/* glossy reflection on the top-left */
+.orb::after {
+  content: "";
+  position: absolute;
+  top: 7%;
+  left: 12%;
+  width: 46%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.75), transparent 70%);
+  filter: blur(3px);
+  transform: rotate(-28deg);
+}
+
+    /* states */
+    .orb[data-state="idle"] {
+      animation: breathe 5s ease-in-out infinite;
+    }
+
+    .orb[data-state="listening"] {
+  animation: breathe 2s ease-in-out infinite;
+  box-shadow:
+    inset 0 0 40px rgba(17, 20, 255, 0.5),
+    inset 0 -30px 60px rgba(30, 10, 255, 0.4),
+    0 0 80px rgba(9, 200, 25, 0.6),
+    0 25px 60px rgba(0, 2, 80, 0.5);
+}
+
+    .orb[data-state="thinking"]::before {
+      animation-duration: 1.5s;
+    }
+
+    .orb[data-state="speaking"] {
+      transform: scale(calc(1 + var(--level) * 0.22));
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* test buttons */
+    .controls { display: flex; gap: 12px; }
+    button {
+      background: #1a1a2e;
+      color: #cfc6ff;
+      border: 1px solid #3a2f7a;
+      border-radius: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    button:hover { background: #2a2250; }
+    .stage {
+  --level: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+/* big soft halo behind the orb, brightens with voice level */
+.stage::before {
+  content: "";
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(70, 160, 255, 0.45) 0%,
+    rgba(40, 100, 255, 0.18) 35%,
+    transparent 65%);
+  filter: blur(30px);
+  opacity: calc(0.7 + var(--level) * 0.3);
+  animation: halo 6s ease-in-out infinite;
+}
+
+
+
+/* glow on the floor under the orb */
+.floor {
+  position: absolute;
+  bottom: -70px;
+  width: 260px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(80, 170, 255, 0.5), transparent 70%);
+  filter: blur(12px);
+}
+
+/* cinematic overlays: vignette + film grain */
+html::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.65) 100%);
+}
+
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+@keyframes halo {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+
+  </style>
 </head>
 <body>
-    <canvas id="orb" width = "500" height ="500"></canvas> 
-    <script src="script.js"></script>
+  <div class="stage">
+    <div class="orb" data-state="idle"></div>
+    <div class="floor"></div>
+  </div>
+  <p class="caption" id="caption"></p>
+  <div class="controls">
+    <button data-set="idle">Idle</button>
+    <button data-set="listening">Listening</button>
+    <button data-set="thinking">Thinking</button>
+    <button data-set="speaking">Speaking</button>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
