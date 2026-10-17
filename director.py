@@ -2,12 +2,14 @@ import math
 import random
 import re
 
+from registry import fits, is_valid, keys
+
 
 VOCAB = {
-    "layouts": ["word", "stack", "term", "split", "stat", "lines"],
-    "enters": ["slam", "punch", "drop", "rise", "words", "blur", "scale", "slide", "countup", "lines", "fade"],
+    "layouts": keys("layout"),
+    "enters": keys("enter"),
     "exits": ["cut", "fade"],
-    "transitions": ["cut", "flash", "fade"],
+    "transitions": keys("transition"),
     "bgs": ["black", "palette"],
 }
 MAX_BEATS = 12
@@ -111,6 +113,30 @@ def _layout(role, text):
     return "word", [text]
 
 
+def _hinted_layout(text, hint):
+    if hint == "word":
+        return "word", [text]
+    if hint == "stack":
+        return "stack", _claim_lines(text)
+    if hint == "term":
+        lines = _split_first(text, [":", " - ", " — "])
+        return ("term", lines) if lines else None
+    if hint == "split":
+        lines = _split_first(text, [" vs. ", " vs ", " | ", " / "])
+        return ("split", lines) if lines else None
+    if hint == "stat":
+        match = _NUMBER_RE.search(text)
+        if match:
+            token = match.group(0).strip()
+            remaining = (text[:match.start()] + " " + text[match.end():]).strip()
+            return "stat", [token, re.sub(r"\s+", " ", remaining)]
+        return None
+    if hint == "lines":
+        parts = [part.strip() for part in re.split(r"[|;]", text) if part.strip()][:4]
+        return ("lines", parts) if len(parts) > 1 else None
+    return None
+
+
 def _enter_pool(role, layout):
     if role == "hook":
         return ["slam", "punch", "drop"]
@@ -161,19 +187,40 @@ def compile(beats, seed=None) -> list[dict]:
             if not show:
                 continue
             emphasis = _emphasis(show, raw.get("emphasis", []), role)
-            layout, lines = _layout(role, show)
+            layout_hint = raw.get("layout")
+            if is_valid("layout", layout_hint):
+                hinted = _hinted_layout(show, layout_hint)
+                if hinted:
+                    layout, lines = hinted
+                elif len(show.split()) == 1:
+                    layout, lines = "word", [show]
+                else:
+                    layout, lines = "stack", _claim_lines(show)
+            else:
+                layout, lines = _layout(role, show)
             if len(decided) >= 2 and decided[-1]["layout"] == layout and decided[-2]["layout"] == layout:
                 layout, lines = "word", [show]
             speech = len(say.split()) * 380
             reading = 600 + len(show.split()) * 300
             ms = max(1000, min(8000, max(speech, reading)))
             pool = _enter_pool(role, layout)
-            choices = [entry for entry in pool if entry != previous_enter] or pool
-            enter = rng.choice(choices)
+            enter_hint = raw.get("enter")
+            if is_valid("enter", enter_hint) and fits(enter_hint, layout):
+                recent_enters = [item["enter"] for item in decided[-2:]]
+                enter = enter_hint if recent_enters != [enter_hint, enter_hint] else None
+            else:
+                enter = None
+            if enter is None:
+                choices = [entry for entry in pool if entry != previous_enter] or pool
+                enter = rng.choice(choices)
             previous_enter = enter
             exit_name = "fade" if ms >= 1500 and role != "hook" else "cut"
             if not decided:
                 transition = "fade"
+            elif is_valid("transition", raw.get("transition")):
+                transition = raw["transition"]
+                if transition == "flash" and sum(item["transition"] == "flash" for item in decided[-2:]) >= 1:
+                    transition = "cut"
             elif role == "conclusion":
                 transition = "fade"
             elif role in {"hook", "number"}:
