@@ -391,7 +391,28 @@ async function playBeats(data) {
   }
 }
 
+const arrowAnims = new Map();
+function growArrow(line, geo, ms) {
+  const prefersReduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReduced || Math.hypot(geo.x2 - geo.x1, geo.y2 - geo.y1) < 2) {
+    line.setAttribute("x2", geo.x2);
+    line.setAttribute("y2", geo.y2);
+    return;
+  }
+  const start = performance.now();
+  const frame = (now) => {
+    const t = Math.min(1, (now - start) / ms);
+    const e = 1 - Math.pow(1 - t, 3);
+    line.setAttribute("x2", geo.x1 + (geo.x2 - geo.x1) * e);
+    line.setAttribute("y2", geo.y1 + (geo.y2 - geo.y1) * e);
+    if (t < 1) arrowAnims.set(line, requestAnimationFrame(frame));
+    else arrowAnims.delete(line);
+  };
+  arrowAnims.set(line, requestAnimationFrame(frame));
+}
+
 async function playDiagram(data) {
+  const arrowGeo = new Map();
   if (!data || !Array.isArray(data.objects) || !data.objects.length || !Array.isArray(data.steps)) return;
   const objects = [];
   const objectIds = new Set();
@@ -500,10 +521,15 @@ async function playDiagram(data) {
       const endOffset = Math.min(toRect.width, toRect.height) / 2;
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.dataset.id = arrow.id;
-      line.setAttribute("x1", fromX + ux * startOffset);
-      line.setAttribute("y1", fromY + uy * startOffset);
-      line.setAttribute("x2", toX - ux * endOffset);
-      line.setAttribute("y2", toY - uy * endOffset);
+      const x1 = fromX + ux * startOffset;
+      const y1 = fromY + uy * startOffset;
+      const x2 = toX - ux * endOffset;
+      const y2 = toY - uy * endOffset;
+      arrowGeo.set(arrow.id, { x1, y1, x2, y2 });
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x1);
+      line.setAttribute("y2", y1);
       line.setAttribute("marker-end", "url(#diagram-arrow)");
       diagramSvg.appendChild(line);
       elements.set(arrow.id, line);
@@ -515,7 +541,15 @@ async function playDiagram(data) {
       elements.forEach((element) => element.classList.remove("on"));
       codeLines.forEach((lines) => lines.forEach((line) => line.classList.remove("hot")));
       for (const id of Array.isArray(step.show) ? step.show : []) {
-        if (elements.has(id)) elements.get(id).classList.add("visible");
+        if (arrowGeo.has(id)) {
+          const line = elements.get(id);
+          if (line && !line.classList.contains("visible")) {
+            line.classList.add("visible");
+            growArrow(line, arrowGeo.get(id), 600);
+          }
+        } else if (elements.has(id)) {
+          elements.get(id).classList.add("visible");
+        }
       }
       for (const id of Array.isArray(step.highlight) ? step.highlight : []) {
         if (elements.has(id)) elements.get(id).classList.add("on");
@@ -536,6 +570,7 @@ async function playDiagram(data) {
       await wait(400);
     }
   } finally {
+    arrowAnims.forEach((rafId) => cancelAnimationFrame(rafId)); arrowAnims.clear();
     if (window.speechSynthesis) speechSynthesis.cancel();
     diagramView.classList.remove("show");
     await wait(500);
