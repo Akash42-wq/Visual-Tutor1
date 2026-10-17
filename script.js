@@ -7,6 +7,9 @@ const sceneView = document.getElementById("scene-view");
 const world = document.getElementById("world");
 const playbackControls = document.getElementById("playback-controls");
 const pauseButton = document.getElementById("pause-playback");
+const beatView = document.getElementById("beat-view");
+const beatText = document.getElementById("beat-text");
+const beatFlash = document.getElementById("beat-flash");
 const root = document.documentElement;
 
 const API_URL = "http://127.0.0.1:8000/explain";
@@ -54,6 +57,7 @@ function makePicker(items, runLength) {
 }
 
 const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
+const nextBeatTransition = makePicker(["punch", "drop", "flash"], 2);
 const CAMERAS = {
   pan:      { rx: 0,   ry: 0,  dz: 0,    t: 1.3 },
   tilt:     { rx: 14,  ry: 16, dz: 0,    t: 1.3 },
@@ -77,6 +81,12 @@ function nextCameraFor(intent) {
   const key = INTENT_CAMERAS[intent] ? intent : "step";
   if (!cameraPickers[key]) cameraPickers[key] = makePicker(INTENT_CAMERAS[key], 2);
   return cameraPickers[key]();
+}
+
+function fitWord(text) {
+  const length = text.length;
+  const width = length <= 6 ? 18 : length <= 12 ? 13 : length <= 20 ? 9 : 6;
+  return `clamp(48px, ${width}vw, 220px)`;
 }
 
 /* ---------- page colors ---------- */
@@ -314,6 +324,46 @@ function applyHighlight(cells, highlight) {
   });
 }
 
+async function playBeats(data) {
+  if (!data || !Array.isArray(data.beats) || !data.beats.length) return;
+  const beats = data.beats
+    .filter((beat) => beat.layout === "word" && String(beat.text || "").trim())
+    .map((beat) => ({
+      ...beat,
+      text: String(beat.text).trim().slice(0, 40),
+      ms: Math.min(3000, Math.max(300, Number.isFinite(beat.ms) ? beat.ms : 700)),
+    }));
+  if (!beats.length) return;
+  running = true;
+  document.body.classList.add("takeover");
+  beatView.classList.add("show");
+  try {
+    await wait(350);
+    for (const beat of beats) {
+      beatView.classList.toggle("palette", beat.bg === "palette");
+      beatText.textContent = beat.text;
+      beatText.style.fontSize = fitWord(beat.text);
+      beatText.classList.toggle("hl", Boolean(beat.emphasis));
+      beatText.classList.remove("punch", "drop");
+      beatFlash.classList.remove("go");
+      void beatText.offsetWidth;
+      const transition = nextBeatTransition();
+      beatText.classList.add(transition === "flash" ? "punch" : transition);
+      if (transition === "flash") {
+        void beatFlash.offsetWidth;
+        beatFlash.classList.add("go");
+      }
+      await wait(beat.ms);
+    }
+  } finally {
+    beatView.classList.remove("show");
+    await wait(400);
+    beatText.textContent = "";
+    document.body.classList.remove("takeover");
+    running = false;
+  }
+}
+
 /* ---------- orb states ---------- */
 
 function setState(state) {
@@ -425,6 +475,20 @@ world.addEventListener("click", (event) => {
   tip.classList.add("show");
   clearTimeout(tipTimer);
   tipTimer = setTimeout(() => tip.classList.remove("show"), 2500);
+});
+document.getElementById("demoBeats").addEventListener("click", async () => {
+  if (running) return;
+  running = true;
+  try {
+    const response = await fetch("beats-demo.json", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Beats demo request failed: ${response.status}`);
+    const data = await response.json();
+    await playBeats(data);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    running = false;
+  }
 });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ask();
