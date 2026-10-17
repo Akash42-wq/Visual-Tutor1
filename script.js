@@ -396,8 +396,24 @@ async function playDiagram(data) {
   const objects = [];
   const objectIds = new Set();
   for (const object of data.objects) {
-    if (!object || typeof object.id !== "string" || !["box", "circle", "label"].includes(object.type) ||
+    if (!object || typeof object.id !== "string" || !["box", "circle", "label", "code"].includes(object.type) ||
         !Number.isFinite(object.x) || !Number.isFinite(object.y) || objectIds.has(object.id)) continue;
+    if (object.type === "code") {
+      if (!Array.isArray(object.lines)) continue;
+      const lines = object.lines
+        .filter((line) => String(line).trim())
+        .slice(0, 12)
+        .map((line) => String(line).slice(0, 60));
+      if (!lines.length) continue;
+      objectIds.add(object.id);
+      objects.push({
+        ...object,
+        lines,
+        x: Math.min(100, Math.max(0, object.x)),
+        y: Math.min(100, Math.max(0, object.y)),
+      });
+      continue;
+    }
     objectIds.add(object.id);
     objects.push({
       ...object,
@@ -416,6 +432,7 @@ async function playDiagram(data) {
     arrows.push(arrow);
   }
   const elements = new Map();
+  const codeLines = new Map();
   running = true;
   stopRequested = false;
   document.body.classList.add("takeover");
@@ -428,7 +445,25 @@ async function playDiagram(data) {
       element.dataset.id = object.id;
       element.style.left = `${object.x}%`;
       element.style.top = `${object.y}%`;
-      element.textContent = object.text;
+      if (object.type === "code") {
+        const lines = [];
+        for (const [index, line] of object.lines.entries()) {
+          const codeline = document.createElement("div");
+          codeline.className = "codeline";
+          const number = document.createElement("span");
+          number.className = "ln";
+          number.textContent = String(index + 1);
+          const source = document.createElement("span");
+          source.className = "src";
+          source.textContent = line;
+          codeline.append(number, source);
+          element.appendChild(codeline);
+          lines.push(codeline);
+        }
+        codeLines.set(object.id, lines);
+      } else {
+        element.textContent = object.text;
+      }
       diagramObjects.appendChild(element);
       elements.set(object.id, element);
     }
@@ -478,11 +513,20 @@ async function playDiagram(data) {
     for (const step of data.steps.slice(0, 12)) {
       if (stopRequested) break;
       elements.forEach((element) => element.classList.remove("on"));
+      codeLines.forEach((lines) => lines.forEach((line) => line.classList.remove("hot")));
       for (const id of Array.isArray(step.show) ? step.show : []) {
         if (elements.has(id)) elements.get(id).classList.add("visible");
       }
       for (const id of Array.isArray(step.highlight) ? step.highlight : []) {
         if (elements.has(id)) elements.get(id).classList.add("on");
+      }
+      if (step.codeLines && typeof step.codeLines === "object") {
+        for (const [id, indexes] of Object.entries(step.codeLines)) {
+          if (!codeLines.has(id) || !Array.isArray(indexes)) continue;
+          for (const index of indexes) {
+            if (codeLines.get(id)[index]) codeLines.get(id)[index].classList.add("hot");
+          }
+        }
       }
       const sayText = String(step.say || "").slice(0, 120);
       diagramSay.textContent = sayText;

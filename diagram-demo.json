@@ -1,17 +1,18 @@
 {"objects":[
- {"id":"variable","type":"box","text":"name","x":28,"y":38},
- {"id":"value","type":"box","text":"Ada","x":72,"y":38},
- {"id":"memory","type":"circle","text":"value","x":72,"y":68},
- {"id":"caption","type":"label","text":"A variable points to a value","x":50,"y":16}
+ {"id":"variable","type":"box","text":"name","x":62,"y":38},
+ {"id":"value","type":"box","text":"Ada","x":84,"y":38},
+ {"id":"memory","type":"circle","text":"value","x":84,"y":68},
+ {"id":"caption","type":"label","text":"A variable points to a value","x":68,"y":16},
+ {"id":"c1","type":"code","lines":["x = 5","y = x","print(y)"],"x":22,"y":50}
 ],
  "arrows":[
   {"id":"points","from":"variable","to":"value"},
   {"id":"stores","from":"value","to":"memory"}
  ],
  "steps":[
-  {"say":"A variable gives a value a name.","show":["variable","caption"],"highlight":["variable"],"ms":2200},
-  {"say":"Here, the name points to Ada.","show":["variable","value","points"],"highlight":["variable","points"],"ms":2400},
-  {"say":"The value is stored in memory.","show":["memory","stores"],"highlight":["memory","stores"],"ms":2200},
-  {"say":"The arrow shows what the variable refers to.","show":["variable","value","memory","points","stores"],"highlight":["points","stores"],"ms":2600},
-  {"say":"Change the value, and the name can point somewhere new.","show":["variable","value","memory","points","stores","caption"],"highlight":["variable","value"],"ms":2800}
+  {"say":"The code assigns five to x.","show":["c1","variable","caption"],"highlight":["variable"],"codeLines":{"c1":[0]},"ms":2200},
+  {"say":"Then y refers to the value in x.","show":["c1","variable","value","points"],"highlight":["variable","points"],"codeLines":{"c1":[1]},"ms":2400},
+  {"say":"The value is stored in memory.","show":["c1","memory","stores"],"highlight":["memory","stores"],"codeLines":{"c1":[2]},"ms":2200},
+  {"say":"The arrow shows what the variable refers to.","show":["c1","variable","value","memory","points","stores"],"highlight":["points","stores"],"ms":2600},
+  {"say":"The code prints the value through its name.","show":["c1","variable","value","memory","points","stores","caption"],"highlight":["variable","value"],"ms":2800}
 ]}

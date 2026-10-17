@@ -550,6 +550,49 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
   padding: 0 8vw;
   margin: 0;
 }
+#diagram-say {
+  bottom: 3vh;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  max-width: 70vw;
+  width: max-content;
+  font-size: clamp(14px, 1.5vw, 22px);
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(5,10,26,0.7);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+#diagram-say:empty { display: none; }
+#diagram-objects .obj.code {
+  padding: 14px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.45);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: clamp(14px, 1.8vw, 26px);
+  text-align: left;
+  white-space: pre;
+  min-width: 18vw;
+}
+.codeline {
+  display: block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  opacity: 0.55;
+  transition: background 0.3s, opacity 0.3s;
+}
+.codeline .ln {
+  display: inline-block;
+  width: 1.6em;
+  margin-right: 12px;
+  opacity: 0.5;
+  text-align: right;
+}
+.codeline.hot {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
   </style>
 </head>
 <body>
