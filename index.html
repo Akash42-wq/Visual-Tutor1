@@ -119,6 +119,15 @@
   display: grid;
   place-items: center;
 }
+.caption {
+  min-height: 1.6em;
+  max-width: 600px;
+  margin: 0;
+  text-align: center;
+  color: #cfe6ff;
+  font-size: 22px;
+  text-shadow: 0 0 12px rgba(90, 180, 255, 0.6);
+}
 
 /* big soft halo behind the orb, brightens with voice level */
 .stage::before {
@@ -173,8 +182,42 @@ html::before {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
+#question {
+  width: 320px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #3a5fa8;
+  background: rgba(10, 20, 50, 0.6);
+  color: #dbe9ff;
+  font-size: 15px;
+  outline: none;
+}
+#question:focus { box-shadow: 0 0 14px rgba(90, 180, 255, 0.6); }
+.w {
+  display: inline-block;
+  margin-right: 0.3em;
+  opacity: 0;
+  animation-duration: 0.6s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+.w.rise { animation-name: rise; }
+.w.blur { animation-name: blurin; }
+.w.glow { animation-name: glowin; }
 
-
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes blurin {
+  from { opacity: 0; filter: blur(10px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+@keyframes glowin {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; color: #fff; text-shadow: 0 0 24px #7fd0ff, 0 0 44px #4aa8ff; }
+  100% { opacity: 1; }
+}
   </style>
 </head>
 <body>
@@ -183,6 +226,7 @@ html::before {
     <div class="floor"></div>
   </div>
   <p class="caption" id="caption"></p>
+  <input id="question" placeholder="Ask something, e.g. explain arrays" autocomplete="off">
   <div class="controls">
     <button data-set="idle">Idle</button>
     <button data-set="listening">Listening</button>
