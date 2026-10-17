@@ -290,12 +290,34 @@ document.getElementById("stop-playback").addEventListener("click", () => {
   if (window.speechSynthesis) speechSynthesis.cancel();
 });
 
+let chosenVoice = null;
+
+function pickVoice() {
+  chosenVoice = null;
+  if (!window.speechSynthesis) {
+    console.log("voice:", chosenVoice && chosenVoice.name);
+    return;
+  }
+  const voices = speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith("en"));
+  const preferred = ["Natural", "Google US English", "Google UK English Female", "Aria", "Jenny", "Zira"];
+  for (const name of preferred) {
+    chosenVoice = voices.find((voice) => voice.name.includes(name));
+    if (chosenVoice) break;
+  }
+  if (!chosenVoice) chosenVoice = voices[0] || null;
+  console.log("voice:", chosenVoice && chosenVoice.name);
+}
+
+pickVoice();
+if (window.speechSynthesis) speechSynthesis.addEventListener("voiceschanged", pickVoice);
+
 function speak(text) {
   const delay = Math.max(1800, text.split(/\s+/).length * 350);
   if (!window.speechSynthesis) return wait(delay);
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1;
+    if (chosenVoice) u.voice = chosenVoice;
     let safetyTimeout;
     const finish = () => {
       clearTimeout(safetyTimeout);
@@ -462,11 +484,15 @@ async function playDiagram(data) {
       for (const id of Array.isArray(step.highlight) ? step.highlight : []) {
         if (elements.has(id)) elements.get(id).classList.add("on");
       }
-      diagramSay.textContent = String(step.say || "").slice(0, 120);
+      const sayText = String(step.say || "").slice(0, 120);
+      diagramSay.textContent = sayText;
       const ms = Math.min(4000, Math.max(800, Number.isFinite(step.ms) ? step.ms : 2000));
-      await wait(ms);
+      await speak(sayText);
+      if (stopRequested) break;
+      await wait(400);
     }
   } finally {
+    if (window.speechSynthesis) speechSynthesis.cancel();
     diagramView.classList.remove("show");
     await wait(500);
     diagramSvg.replaceChildren();
@@ -607,6 +633,7 @@ document.getElementById("demoBeats").addEventListener("click", async () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && diagramView.classList.contains("show")) {
     stopRequested = true;
+    if (window.speechSynthesis) speechSynthesis.cancel();
   }
 });
 document.getElementById("demoDiagram").addEventListener("click", async () => {
