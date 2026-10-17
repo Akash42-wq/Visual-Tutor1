@@ -3,83 +3,183 @@ const orb = document.querySelector(".orb");
 const buttons = document.querySelectorAll("button[data-set]");
 const caption = document.getElementById("caption");
 const input = document.getElementById("question");
+const sceneView = document.getElementById("scene-view");
+const world = document.getElementById("world");
+const root = document.documentElement;
 
 const API_URL = "http://127.0.0.1:8000/explain";
+const GAP = 1000; // distance between cards
 let rafId = null;
-let typeTimer = null;
 let running = false;
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const rand = (min, max) => min + Math.random() * (max - min);
+const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 /* ---------- variety logic ---------- */
 
-// one font per page load (system fonts, nothing to download)
+// one font per page load
 const FONTS = [
   '"Segoe UI", sans-serif',
-  'Georgia, serif',
+  "Georgia, serif",
   '"Trebuchet MS", sans-serif',
   '"Palatino Linotype", serif',
-  'Consolas, monospace',
+  "Consolas, monospace",
 ];
-caption.style.fontFamily = FONTS[Math.floor(Math.random() * FONTS.length)];
+const font = pickOne(FONTS);
+caption.style.fontFamily = font;
+sceneView.style.fontFamily = font;
 
-// each style is used 5 times in a row, then a random different one
-const STYLES = ["typewriter", "rise", "blur", "glow"];
-let currentStyle = null;
-let usesLeft = 0;
+// same item `runLength` times in a row, then a different random one
+function makePicker(items, runLength) {
+  let current = null;
+  let left = 0;
+  return function next() {
+    if (left <= 0) {
+      current = pickOne(items.filter((i) => i !== current));
+      left = runLength;
+    }
+    left--;
+    return current;
+  };
+}
 
-function pickStyle() {
-  if (usesLeft <= 0) {
-    const others = STYLES.filter((s) => s !== currentStyle);
-    currentStyle = others[Math.floor(Math.random() * others.length)];
-    usesLeft = 5;
+const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
+const CAMERAS = {
+  pan:   { rx: 0,  ry: 0,  dz: 0 },
+  tilt:  { rx: 14, ry: 16, dz: 0 },
+  push:  { rx: 0,  ry: 0,  dz: 160 },
+  orbit: { rx: 8,  ry: 26, dz: 60 },
+};
+const nextCamera = makePicker(Object.keys(CAMERAS), 5); // once per scene
+
+/* ---------- page colors ---------- */
+
+const DEFAULT_PALETTE = {
+  base: "#050a1a", c1: "rgba(40, 90, 255, 0.55)", c2: "rgba(0, 210, 255, 0.4)", accent: "#8fdcff",
+};
+const PALETTES = [
+  { base: "#0a0620", c1: "rgba(120, 60, 255, 0.55)", c2: "rgba(255, 80, 200, 0.35)", accent: "#d7a8ff" },
+  { base: "#140806", c1: "rgba(255, 110, 40, 0.5)",  c2: "rgba(255, 190, 60, 0.3)",  accent: "#ffc27a" },
+  { base: "#04120d", c1: "rgba(20, 200, 140, 0.45)", c2: "rgba(60, 140, 255, 0.3)",  accent: "#8fffd6" },
+  DEFAULT_PALETTE,
+];
+const nextPalette = makePicker(PALETTES, 1); // new palette every scene
+
+function applyPalette(p) {
+  root.style.setProperty("--base", p.base);
+  root.style.setProperty("--c1", p.c1);
+  root.style.setProperty("--c2", p.c2);
+  root.style.setProperty("--accent", p.accent);
+}
+
+/* ---------- text reveal ---------- */
+
+const norm = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+function revealText(el, text, emphasis, style) {
+  el.textContent = "";
+  const marks = new Set((emphasis || []).join(" ").split(/\s+/).map(norm).filter(Boolean));
+  let delay = 0;
+  text.split(/\s+/).filter(Boolean).forEach((word) => {
+    const span = document.createElement("span");
+    span.className = "word";
+    if (marks.has(norm(word))) span.classList.add("hl");
+    if (style === "type") {
+      [...word].forEach((ch) => {
+        const c = document.createElement("span");
+        c.className = "c";
+        c.textContent = ch;
+        c.style.animationDelay = delay + "ms";
+        delay += 28;
+        span.appendChild(c);
+      });
+      delay += 28;
+    } else {
+      span.classList.add("w", style);
+      span.textContent = word;
+      span.style.animationDelay = delay + "ms";
+      delay += 90;
+    }
+    el.appendChild(span);
+  });
+  return wait(delay + 600);
+}
+
+/* ---------- camera and scenes ---------- */
+
+function buildWorld(scenes) {
+  world.innerHTML = "";
+  const cards = [];
+  scenes.forEach((_, i) => {
+    const pos = { x: i * GAP, y: i % 2 === 0 ? -40 : 50, z: -rand(0, 140) };
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.transform = `translate(-50%, -50%) translate3d(${pos.x}px, ${pos.y}px, ${pos.z}px)`;
+    const p = document.createElement("p");
+    card.appendChild(p);
+    world.appendChild(card);
+    cards.push({ card, p, pos });
+  });
+  // generic rectangles scattered across the whole space
+  const length = scenes.length * GAP;
+  for (let i = 0; i < 24; i++) {
+    const r = document.createElement("div");
+    r.className = "rect";
+    r.style.width = rand(80, 320) + "px";
+    r.style.height = rand(8, 90) + "px";
+    r.style.opacity = rand(0.1, 0.35).toFixed(2);
+    r.style.transform =
+      `translate(-50%, -50%) translate3d(${rand(-600, length + 400)}px, ${rand(-420, 420)}px, ${rand(-600, 100)}px)`;
+    world.appendChild(r);
   }
-  usesLeft--;
-  return currentStyle;
+  return cards;
 }
 
-/* ---------- text animations ---------- */
-
-// letter by letter
-function typeText(text, speed = 30) {
-  return new Promise((resolve) => {
-    clearInterval(typeTimer);
-    caption.textContent = "";
-    let i = 0;
-    typeTimer = setInterval(() => {
-      caption.textContent += text[i];
-      i++;
-      if (i >= text.length) {
-        clearInterval(typeTimer);
-        resolve();
-      }
-    }, speed);
-  });
+function moveCamera(pos, first) {
+  const name = nextCamera();
+  const cam = CAMERAS[name];
+  const sign = Math.random() < 0.5 ? -1 : 1;
+  console.log("camera:", name);
+  if (first) {
+    world.style.transition = "none";
+    world.style.transform =
+      `translateZ(-600px) rotateY(25deg) translate3d(${-pos.x + 300}px, ${-pos.y}px, ${-pos.z}px)`;
+    void world.offsetWidth; // make the browser apply the start position
+  }
+  world.style.transition = "transform 1.3s cubic-bezier(0.65, 0, 0.2, 1)";
+  world.style.transform =
+    `translateZ(${cam.dz}px) rotateX(${cam.rx * sign}deg) rotateY(${cam.ry * sign}deg) ` +
+    `translate3d(${-pos.x}px, ${-pos.y}px, ${-pos.z}px)`;
 }
 
-// word by word; CSS does the actual animation (rise / blur / glow)
-function wordAnimate(text, style, step = 90) {
-  return new Promise((resolve) => {
-    clearInterval(typeTimer);
-    caption.textContent = "";
-    const words = text.split(/\s+/).filter(Boolean);
-    words.forEach((word, i) => {
-      const span = document.createElement("span");
-      span.className = "w " + style;
-      span.textContent = word;                      // textContent = safe, no HTML injection
-      span.style.animationDelay = i * step + "ms";
-      caption.appendChild(span);
-    });
-    setTimeout(resolve, words.length * step + 600);
-  });
-}
-
-// later, voice will set `step` so words land in time with the audio
-function animateText(text) {
-  const style = pickStyle();
-  console.log("animation style:", style, "| uses left:", usesLeft);
-  if (style === "typewriter") return typeText(text);
-  return wordAnimate(text, style);
+async function playScenes(scenes) {
+  const style = nextTextStyle();
+  console.log("text style:", style);
+  const cards = buildWorld(scenes);
+  document.body.classList.add("takeover");           // orb and controls fade out
+  try {
+    await wait(700);
+    sceneView.classList.add("show");                 // scene fills the page
+    await wait(500);
+    for (let i = 0; i < cards.length; i++) {
+      const { card, p, pos } = cards[i];
+      applyPalette(nextPalette());                   // page color shifts
+      moveCamera(pos, i === 0);
+      await wait(900);
+      card.classList.add("active");
+      await revealText(p, scenes[i].text, scenes[i].emphasis, style);
+      await wait(900);                               // voice timing will control this later
+      card.classList.remove("active");
+      card.classList.add("done");
+    }
+    await wait(500);
+  } finally {                                        // always give the page back
+    sceneView.classList.remove("show");
+    applyPalette(DEFAULT_PALETTE);
+    await wait(800);
+    document.body.classList.remove("takeover");      // orb comes back
+  }
 }
 
 /* ---------- orb states ---------- */
@@ -109,7 +209,7 @@ async function ask() {
   caption.textContent = "";
   setState("thinking");
 
-  let reply;
+  let data;
   try {
     const res = await fetch(API_URL, {
       method: "POST",
@@ -117,15 +217,19 @@ async function ask() {
       body: JSON.stringify({ question }),
     });
     if (!res.ok) throw new Error("Server error " + res.status);
-    const data = await res.json();
-    reply = data.text;
+    data = await res.json();
   } catch (err) {
     console.error(err);
-    reply = "Could not reach the backend. Is it running?";
+    data = { spoken: "Could not reach the backend. Is it running?", scenes: [] };
   }
 
   setState("speaking");
-  await animateText(reply);
+  if (data.scenes && data.scenes.length) {
+    await playScenes(data.scenes);
+  } else {
+    caption.classList.remove("hidden");
+    await revealText(caption, data.spoken || data.text || "", [], nextTextStyle());
+  }
   await wait(800);
   setState("idle");
   running = false;
@@ -138,3 +242,4 @@ input.addEventListener("keydown", (e) => {
 });
 
 setState("idle");
+applyPalette(DEFAULT_PALETTE);

@@ -29,17 +29,35 @@ def hello():
 @app.post("/explain")
 def explain(q: Question):
     prompt = (
-        "You are a friendly programming tutor speaking out loud to a beginner. "
-        "If the message is a greeting or small talk, reply in one short friendly sentence "
-        "and ask what concept they want to learn. "
-        "If it is a programming or computer science topic, explain it in 3 or 4 short, "
-        "spoken-style sentences, maximum 60 words. "
-        "Plain text only: no markdown, no lists, no code blocks. "
+        "You are a friendly programming tutor for beginners.\n"
+        "Reply as JSON with two fields.\n"
+        "spoken: what you would say out loud, 3 or 4 short sentences, maximum 60 words, plain text.\n"
+        "scenes: the key on-screen lines for the explanation, 3 to 5 items in teaching order. "
+        "Each scene has text (a short line of at most 8 words) and emphasis "
+        "(1 or 2 important words copied exactly from that text).\n"
+        "If the user message is only a greeting or small talk, give one friendly sentence in spoken "
+        "and an empty scenes list.\n"
         f"User message: {q.question}"
     )
     try:
-        interaction = client.interactions.create(model=MODEL, input=prompt)
-        return {"text": interaction.output_text}
+        interaction = client.interactions.create(
+            model=MODEL,
+            input=prompt,
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": Plan.model_json_schema(),
+            },
+        )
+        plan = Plan.model_validate_json(interaction.output_text)
+        return plan.model_dump()
     except Exception as e:
         print("Gemini error:", e)
-        return {"text": "Sorry, I couldn't reach Gemini. Check the backend terminal for the error."}
+        return {"spoken": "Sorry, I couldn't reach Gemini. Check the backend terminal.", "scenes": []}
+class Scene(BaseModel):
+    text: str
+    emphasis: list[str]
+
+class Plan(BaseModel):
+    spoken: str
+    scenes: list[Scene]
