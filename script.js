@@ -55,12 +55,29 @@ function makePicker(items, runLength) {
 
 const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
 const CAMERAS = {
-  pan:   { rx: 0,  ry: 0,  dz: 0 },
-  tilt:  { rx: 14, ry: 16, dz: 0 },
-  push:  { rx: 0,  ry: 0,  dz: 160 },
-  orbit: { rx: 8,  ry: 26, dz: 60 },
+  pan:      { rx: 0,   ry: 0,  dz: 0,    t: 1.3 },
+  tilt:     { rx: 14,  ry: 16, dz: 0,    t: 1.3 },
+  push:     { rx: 0,   ry: 0,  dz: 160,  t: 1.2 },
+  orbit:    { rx: 8,   ry: 26, dz: 60,   t: 1.4 },
+  dolly:    { rx: 0,   ry: 6,  dz: 120,  t: 1.1 },
+  crane:    { rx: -14, ry: 0,  dz: 40,   t: 1.3 },
+  whip:     { rx: 0,   ry: 30, dz: 0,    t: 0.8 },
+  drift:    { rx: 3,   ry: 8,  dz: 20,   t: 1.4 },
+  pullback: { rx: 4,   ry: 0,  dz: -180, t: 1.3 },
 };
-const nextCamera = makePicker(Object.keys(CAMERAS), 5); // once per scene
+const INTENT_CAMERAS = {
+  intro: ["push", "crane", "orbit"],
+  compare: ["pan", "tilt", "drift"],
+  warning: ["whip", "push", "tilt"],
+  step: ["pan", "tilt", "dolly", "drift"],
+  recap: ["orbit", "crane", "pullback"],
+};
+const cameraPickers = {};
+function nextCameraFor(intent) {
+  const key = INTENT_CAMERAS[intent] ? intent : "step";
+  if (!cameraPickers[key]) cameraPickers[key] = makePicker(INTENT_CAMERAS[key], 2);
+  return cameraPickers[key]();
+}
 
 /* ---------- page colors ---------- */
 
@@ -166,18 +183,18 @@ function buildWorld(scenes) {
 }
 
 
-function moveCamera(pos, first) {
-  const name = nextCamera();
+function moveCamera(pos, first, intent) {
+  const name = nextCameraFor(intent);
   const cam = CAMERAS[name];
   const sign = Math.random() < 0.5 ? -1 : 1;
-  console.log("camera:", name);
+  console.log("camera:", name, intent);
   if (first) {
     world.style.transition = "none";
     world.style.transform =
       `translateZ(-600px) rotateY(25deg) translate3d(${-pos.x + 300}px, ${-pos.y}px, ${-pos.z}px)`;
     void world.offsetWidth; // make the browser apply the start position
   }
-  world.style.transition = "transform 1.3s cubic-bezier(0.65, 0, 0.2, 1)";
+  world.style.transition = `transform ${cam.t}s cubic-bezier(0.65, 0, 0.2, 1)`;
   world.style.transform =
     `translateZ(${cam.dz}px) rotateX(${cam.rx * sign}deg) rotateY(${cam.ry * sign}deg) ` +
     `translate3d(${-pos.x}px, ${-pos.y}px, ${-pos.z}px)`;
@@ -201,7 +218,7 @@ async function playScenes(scenes) {
       let current = null;
       if (diagram.type === "array") current = [...diagram.items];
       applyPalette(nextPalette());                   // page color shifts
-      moveCamera(pos, i === 0);
+      moveCamera(pos, i === 0, scenes[i].intent);
       await wait(900);
       card.classList.add("active");
       for (const step of scenes[i].steps) {
