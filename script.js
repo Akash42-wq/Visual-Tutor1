@@ -1025,7 +1025,115 @@ const arrayView = document.getElementById("array-view");
 const arrayTitle = document.getElementById("array-title");
 const arrayStage = document.getElementById("array-stage");
 const arraySay = document.getElementById("array-say");
-function sfx(name) {}
+const SFX_VOLUME = 0.35;
+let sfxOn = true;
+let sfxCtx = null;
+let sfxMaster = null;
+let sfxNoise = null;
+let buildStep = 0;
+let lastBuild = 0;
+function sfxInit() {
+  try {
+    if (sfxCtx) {
+      if (sfxCtx.state === "suspended") sfxCtx.resume();
+      return true;
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return false;
+    sfxCtx = new AudioContextClass();
+    const compressor = sfxCtx.createDynamicsCompressor();
+    sfxMaster = sfxCtx.createGain();
+    sfxMaster.gain.value = SFX_VOLUME;
+    sfxMaster.connect(compressor);
+    compressor.connect(sfxCtx.destination);
+    sfxNoise = sfxCtx.createBuffer(1, sfxCtx.sampleRate, sfxCtx.sampleRate);
+    const noiseData = sfxNoise.getChannelData(0);
+    for (let i = 0; i < noiseData.length; i += 1) noiseData[i] = Math.random() * 2 - 1;
+    return true;
+  } catch (err) {
+    sfxCtx = null;
+    sfxMaster = null;
+    sfxNoise = null;
+    return false;
+  }
+}
+function tone(freq, start, dur, vol, type = "sine", endFreq) {
+  const oscillator = sfxCtx.createOscillator();
+  const gain = sfxCtx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(freq, start);
+  if (endFreq !== undefined) oscillator.frequency.exponentialRampToValueAtTime(endFreq, start + dur);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(vol, start + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  oscillator.connect(gain);
+  gain.connect(sfxMaster);
+  oscillator.start(start);
+  oscillator.stop(start + dur + 0.05);
+}
+function whoosh(start, dur, vol) {
+  const source = sfxCtx.createBufferSource();
+  const filter = sfxCtx.createBiquadFilter();
+  const gain = sfxCtx.createGain();
+  source.buffer = sfxNoise;
+  source.loop = true;
+  filter.type = "bandpass";
+  filter.Q.value = 0.8;
+  filter.frequency.setValueAtTime(400, start);
+  filter.frequency.exponentialRampToValueAtTime(1600, start + dur * 0.6);
+  filter.frequency.exponentialRampToValueAtTime(500, start + dur);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(vol, start + dur * 0.35);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(sfxMaster);
+  source.start(start);
+  source.stop(start + dur + 0.05);
+}
+function sfx(name) {
+  if (!sfxOn || !sfxInit()) return;
+  const t = sfxCtx.currentTime;
+  if (name === "build") {
+    const now = performance.now();
+    if (now - lastBuild > 700) buildStep = 0;
+    lastBuild = now;
+    const semitones = [0, 2, 4, 7, 9, 12, 14, 16];
+    const semitone = semitones[Math.min(buildStep, semitones.length - 1)];
+    const freq = 440 * Math.pow(2, semitone / 12);
+    tone(freq, t, 0.22, 0.5, "sine");
+    tone(freq * 2, t, 0.1, 0.12, "sine");
+    buildStep += 1;
+  } else if (name === "focus") {
+    tone(880, t, 0.35, 0.28, "sine");
+    tone(1320, t + 0.06, 0.3, 0.18, "sine");
+  } else if (name === "pointer") {
+    tone(300, t, 0.45, 0.16, "sine", 430);
+  } else if (name === "set") {
+    tone(660, t, 0.1, 0.25, "triangle");
+    tone(880, t + 0.1, 0.14, 0.22, "triangle");
+  } else if (name === "swap") {
+    whoosh(t, 0.8, 0.3);
+    tone(110, t + 0.7, 0.18, 0.3, "sine");
+  }
+}
+const sfxBtn = document.getElementById("sfxBtn");
+sfxBtn.addEventListener("click", () => {
+  sfxOn = !sfxOn;
+  sfxBtn.textContent = sfxOn ? "Sound: on" : "Sound: off";
+  if (sfxOn) {
+    sfxInit();
+    sfx("focus");
+  }
+});
+document.addEventListener("keydown", (event) => {
+  const active = document.activeElement;
+  if ((event.key === "m" || event.key === "M") &&
+      active && active.tagName !== "INPUT" && active.tagName !== "TEXTAREA" && active.id !== "question") {
+    sfxOn = !sfxOn;
+    sfxBtn.textContent = sfxOn ? "Sound: on" : "Sound: off";
+  }
+});
 const AEASE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
 const ASPRING = "cubic-bezier(0.2, 1.25, 0.4, 1)";
 
