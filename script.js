@@ -586,11 +586,91 @@ function startThinkingCaptions() {
   return () => clearInterval(timer);
 }
 
+const SMALL_TALK = [
+  {
+    phrases: ["hi", "hey", "hello", "yo", "sup", "hiya", "heyy", "helo", "hey there", "hi there", "hello there", "good morning", "good afternoon", "good evening", "howdy", "greetings", "hey orb", "hi orb", "hello orb", "hey orbe"],
+    replies: ["Hi. What would you like to learn?", "Hello. Ask me a programming question.", "Hey. I am ready when you are."],
+  },
+  {
+    phrases: ["how are you", "how are you doing", "how you doing", "hows it going", "how is it going", "how is your day", "whats up", "wassup", "how have you been", "you good", "hru", "how are things", "how are things going", "how are you today", "are you doing okay", "everything good"],
+    replies: ["I am doing well and ready to help.", "I am good. What should we explore?", "All systems are ready for your question."],
+  },
+  {
+    phrases: ["thanks", "thank you", "thx", "ty", "thanks a lot", "thank you so much", "cheers", "appreciate it", "much appreciated", "thanks orb", "thank you orb", "many thanks", "thanks a bunch", "thank you very much", "i appreciate it"],
+    replies: ["You are welcome.", "Glad I could help.", "Anytime. Ask another question when you like."],
+  },
+  {
+    phrases: ["bye", "goodbye", "see you", "see ya", "cya", "later", "good night", "gn", "take care", "talk later", "bye orb", "goodbye orb", "see you later", "catch you later", "i am leaving", "have a good night"],
+    replies: ["Goodbye. Come back whenever you have another question.", "See you later.", "Take care."],
+  },
+  {
+    phrases: ["who are you", "what are you", "whats your name", "what is your name", "are you a bot", "are you ai", "are you real", "who made you", "who built you", "what should i call you", "tell me about yourself", "are you artificial intelligence", "are you a robot", "is this a bot", "what kind of bot are you"],
+    replies: ["I am Orb, a programming tutor.", "I am an AI tutor that explains programming ideas.", "I am Orb. I turn programming questions into clear explanations."],
+  },
+  {
+    phrases: ["what can you do", "what do you do", "help", "help me", "how do you work", "what can i ask", "what should i ask", "how does this work", "what topics do you know", "what are you able to do", "can you help", "can you teach me", "what can i learn", "what do you know", "how can you help me"],
+    replies: ["I explain programming ideas with diagrams. Try asking, \"explain arrays.\"", "I teach programming concepts with visual examples. You could ask, \"what is a loop?\"", "I can explain code and data structures step by step. Try, \"explain variables.\""],
+  },
+  {
+    phrases: ["ok", "okay", "k", "cool", "nice", "great", "awesome", "got it", "i see", "makes sense", "alright", "sure", "fine", "good", "perfect", "wow", "understood", "that helps", "sounds good", "neat"],
+    replies: ["Great. What would you like to ask next?", "Nice. Send me another programming question.", "Glad that makes sense."],
+  },
+  {
+    phrases: ["sorry", "my bad", "oops", "sorry orb", "i apologize", "my mistake", "oops sorry", "forgive me", "sorry about that", "i made a mistake"],
+    replies: ["No problem.", "That is okay.", "No worries. We can try again."],
+  },
+  {
+    phrases: ["lol", "haha", "hahaha", "lmao", "hehe", "rofl", "that is funny", "thats funny", "funny", "ha", "hehehe", "lol orb"],
+    replies: ["Glad that was amusing.", "A little humor helps.", "Heh. Ready for another question?"],
+  },
+  {
+    phrases: ["are you there", "you there", "hello are you there", "test", "testing", "anyone there", "are you online", "is anyone there", "orb are you there", "can you hear me", "did you get that", "are you awake", "hello orb are you there", "is this working", "does this work"],
+    replies: ["I am here.", "Yes, I am ready.", "I am online and listening."],
+  },
+];
+
+function normalizeChat(text) {
+  const words = String(text).toLowerCase().replace(/[^\p{L}\p{N} ]/gu, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const mapped = words.map((word) => ({
+    u: "you", r: "are", ur: "your", thx: "thanks", pls: "please", hru: "how are you", wassup: "whats up",
+  }[word] || word)).join(" ");
+  if (SMALL_TALK.some((category) => category.phrases.some((phrase) => phrase === mapped))) return mapped;
+  const fillers = ["bro", "man", "dude", "claude", "orb", "please", "there"];
+  const normalizedWords = mapped.split(" ");
+  if (normalizedWords.some((word) => fillers.indexOf(word) === -1)) {
+    return normalizedWords.filter((word) => fillers.indexOf(word) === -1).join(" ");
+  }
+  return mapped;
+}
+
+function localReply(question) {
+  const n = normalizeChat(question);
+  if (!n || n.split(" ").length > 8) return null;
+  const category = SMALL_TALK.find((item) => item.phrases.some((phrase) => phrase === n));
+  return category ? pickOne(category.replies) : null;
+}
+
+function isChatReply(scenes) {
+  if (!Array.isArray(scenes) || scenes.length !== 1) return false;
+  const sc = scenes[0];
+  const noDiagram = !sc.diagram || sc.diagram.type === "none";
+  return noDiagram && Array.isArray(sc.steps) && sc.steps.length === 1;
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
   running = true;
   try {
+    const local = localReply(question);
+    if (local) {
+      caption.textContent = "";
+      setState("speaking");
+      caption.classList.remove("hidden");
+      await Promise.all([revealText(caption, local, [], nextTextStyle()), speak(local)]);
+      await wait(800);
+      return;
+    }
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
@@ -612,11 +692,14 @@ async function ask() {
 
     stopCaptions(); caption.textContent = "";
     setState("speaking");
-    if (data.scenes && data.scenes.length) {
+    if (data.scenes && data.scenes.length && !isChatReply(data.scenes)) {
       await playScenes(data.scenes);
     } else {
       caption.classList.remove("hidden");
-      await revealText(caption, data.spoken || data.text || "", [], nextTextStyle());
+      const chatText = (data.scenes && data.scenes.length && isChatReply(data.scenes))
+        ? String(data.scenes[0].steps[0].say || "")
+        : (data.spoken || data.text || "");
+      await Promise.all([revealText(caption, chatText, [], nextTextStyle()), chatText ? speak(chatText) : Promise.resolve()]);
     }
     await wait(800);
   } finally {
