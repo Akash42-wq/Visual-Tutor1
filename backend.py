@@ -13,7 +13,7 @@ from pathlib import Path
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
 
-MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-3.8-flash").split(",") if m.strip()]
+MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-2.5-flash").split(",") if m.strip()]
 
 client = genai.Client(http_options={"timeout": 20000})  # picks up GEMINI_API_KEY from the environment
 _requests_used = ContextVar("requests_used", default=0)
