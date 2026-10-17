@@ -5,6 +5,8 @@ const caption = document.getElementById("caption");
 const input = document.getElementById("question");
 const sceneView = document.getElementById("scene-view");
 const world = document.getElementById("world");
+const playbackControls = document.getElementById("playback-controls");
+const pauseButton = document.getElementById("pause-playback");
 const root = document.documentElement;
 
 const API_URL = "http://127.0.0.1:8000/explain";
@@ -12,6 +14,9 @@ const IMAGE_BASE = "http://127.0.0.1:8000/images";
 const GAP = 1000; // distance between cards
 let rafId = null;
 let running = false;
+let paused = false;
+let skipRequested = false;
+let stopRequested = false;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -176,12 +181,18 @@ function moveCamera(pos, first) {
 }
 
 async function playScenes(scenes) {
+  paused = false;
+  skipRequested = false;
+  stopRequested = false;
+  pauseButton.textContent = "Pause";
+  playbackControls.classList.add("show");
   const cards = buildWorld(scenes);
   document.body.classList.add("takeover");           // orb and controls fade out
   try {
     await wait(700);
     sceneView.classList.add("show");                 // scene fills the page
     await wait(500);
+    scenesLoop:
     for (let i = 0; i < cards.length; i++) {
       const { card, p, pos, cells, diagram } = cards[i];
       let current = null;
@@ -191,6 +202,8 @@ async function playScenes(scenes) {
       await wait(900);
       card.classList.add("active");
       for (const step of scenes[i].steps) {
+        while (paused && !stopRequested) await wait(100);
+        if (stopRequested) break scenesLoop;
         applyHighlight(cells, step.highlight);
         if (current && step.items.length === current.length && step.items.length) {
           step.items.forEach((item, index) => {
@@ -205,7 +218,10 @@ async function playScenes(scenes) {
           current = [...step.items];
         }
         showLine(p, step.say);
-        await wait(Math.max(1800, step.say.split(/\s+/).length * 350));
+        await speak(step.say);
+        await wait(300);
+        if (stopRequested) break scenesLoop;
+        skipRequested = false;
       }
       applyHighlight(cells, []);
       await wait(900);                               // voice timing will control this later
@@ -214,11 +230,49 @@ async function playScenes(scenes) {
     }
     await wait(500);
   } finally {                                        // always give the page back
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    playbackControls.classList.remove("show");
     sceneView.classList.remove("show");
     applyPalette(DEFAULT_PALETTE);
     await wait(800);
     document.body.classList.remove("takeover");      // orb comes back
   }
+}
+
+pauseButton.addEventListener("click", () => {
+  paused = !paused;
+  pauseButton.textContent = paused ? "Resume" : "Pause";
+  if (window.speechSynthesis) {
+    if (paused) speechSynthesis.pause();
+    else speechSynthesis.resume();
+  }
+});
+document.getElementById("skip-playback").addEventListener("click", () => {
+  skipRequested = true;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+});
+document.getElementById("stop-playback").addEventListener("click", () => {
+  stopRequested = true;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+});
+
+function speak(text) {
+  const delay = Math.max(1800, text.split(/\s+/).length * 350);
+  if (!window.speechSynthesis) return wait(delay);
+  return new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    let safetyTimeout;
+    const finish = () => {
+      clearTimeout(safetyTimeout);
+      resolve();
+    };
+    u.onend = finish;
+    u.onerror = finish;
+    safetyTimeout = setTimeout(finish, 20000);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  });
 }
 
 function showLine(p, text) {

@@ -306,6 +306,35 @@ html::before {
   transition: opacity 0.8s ease;
 }
 #scene-view.show { opacity: 1; }
+#playback-controls {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 18%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+#playback-controls.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+#playback-controls button {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #e3f0ff;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font: inherit;
+  cursor: pointer;
+}
 
 .card {
   width: min(720px, 78vw);
@@ -388,7 +417,14 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     <div class="floor"></div>
   </div>
   <p class="caption" id="caption"></p>
-  <div id="scene-view"><div id="world"></div></div>
+  <div id="scene-view">
+    <div id="world"></div>
+    <div id="playback-controls">
+      <button id="pause-playback">Pause</button>
+      <button id="skip-playback">Skip step</button>
+      <button id="stop-playback">Stop</button>
+    </div>
+  </div>
   <input id="question" placeholder="Ask something, e.g. explain arrays" autocomplete="off">
   <div class="controls">
     <button data-set="idle">Idle</button>
