@@ -694,7 +694,7 @@ function isChatReply(scenes) {
 
 const USE_DIAGRAM = true;
 const DIAGRAM_URL = "http://127.0.0.1:8000/diagram";
-async function fetchDiagram(question) {
+async function fetchVisual(question) {
   try {
     const res = await fetch(DIAGRAM_URL, {
       method: "POST",
@@ -704,11 +704,12 @@ async function fetchDiagram(question) {
     });
     if (!res.ok) return null;
     const json = await res.json();
-    const d = json && json.kind === "diagram" ? json.data : null;
-    if (!d || !Array.isArray(d.objects) || !d.objects.length || !Array.isArray(d.steps)) return null;
-    return d;
+    if (!json || !json.data) return null;
+    if (json.kind === "array" && Array.isArray(json.data.steps) && json.data.steps.length) return json;
+    if (json.kind === "diagram" && Array.isArray(json.data.objects) && json.data.objects.length && Array.isArray(json.data.steps)) return json;
+    return null;
   } catch (err) {
-    console.warn("diagram request failed, using the old flow:", err);
+    console.warn("visual request failed, using the old flow:", err);
     return null;
   }
 }
@@ -730,12 +731,14 @@ async function ask() {
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
-    const diagramData = USE_DIAGRAM ? await fetchDiagram(question) : null;
-    if (diagramData) {
+    const visual = USE_DIAGRAM ? await fetchVisual(question) : null;
+    if (visual) {
       stopCaptions();
       caption.textContent = "";
       setState("speaking");
-      await playDiagram(diagramData);
+      running = false;
+      if (visual.kind === "array") await playArray(visual.data);
+      else await playDiagram(visual.data);
       return;
     }
 

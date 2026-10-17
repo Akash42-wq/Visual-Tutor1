@@ -173,15 +173,32 @@ def hello():
 
 @app.post("/diagram")
 def diagram(q: Question):
-    if os.getenv("DIAGRAM_MOCK", "1") != "1":
+    mock = os.getenv("DIAGRAM_MOCK", "1")
+    if mock in ("1", "array"):
+        filename = "array-demo.json"
+        kind = "array"
+    elif mock == "diagram":
+        filename = "diagram-demo.json"
+        kind = "diagram"
+    else:
         raise HTTPException(status_code=501, detail="Real diagram generation is not built yet")
+    path = Path(__file__).parent / filename
     try:
-        data = json.loads((Path(__file__).parent / "diagram-demo.json").read_text())
+        data = json.loads(path.read_text())
     except (OSError, UnicodeError, json.JSONDecodeError):
-        raise HTTPException(status_code=500, detail="diagram-demo.json is missing or invalid")
-    if not isinstance(data, dict) or not isinstance(data.get("objects"), list) or not data["objects"] or not isinstance(data.get("steps"), list):
-        raise HTTPException(status_code=500, detail="diagram-demo.json is missing or invalid")
-    return {"kind": "diagram", "data": data}
+        raise HTTPException(status_code=500, detail=f"{filename} is missing or invalid")
+    if kind == "array":
+        valid = isinstance(data, dict) and isinstance(data.get("steps"), list) and bool(data["steps"])
+    else:
+        valid = (
+            isinstance(data, dict)
+            and isinstance(data.get("objects"), list)
+            and bool(data["objects"])
+            and isinstance(data.get("steps"), list)
+        )
+    if not valid:
+        raise HTTPException(status_code=500, detail=f"{filename} is missing or invalid")
+    return {"kind": kind, "data": data}
 
 @app.post("/explain")
 def explain(q: Question):
