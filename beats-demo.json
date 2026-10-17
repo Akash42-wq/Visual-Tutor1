@@ -1,9 +1,14 @@
 {"beats":[
- {"layout":"word","text":"Arrays","ms":800,"bg":"black"},
- {"layout":"word","text":"A list","ms":700,"bg":"black"},
- {"layout":"word","text":"Numbered","ms":700,"bg":"black","emphasis":true},
- {"layout":"word","text":"From zero","ms":900,"bg":"black","emphasis":true},
- {"layout":"word","text":"Fast","ms":500,"bg":"palette"},
- {"layout":"word","text":"Simple","ms":500,"bg":"palette"},
- {"layout":"word","text":"Powerful","ms":900,"bg":"palette","emphasis":true}
+ {"layout":"word","text":"An array","ms":900,"bg":"black","emphasis":false},
+ {"layout":"word","text":"Is a list","ms":800,"bg":"black","emphasis":false},
+ {"layout":"word","text":"Of values","ms":750,"bg":"black","emphasis":false},
+ {"layout":"word","text":"In order","ms":700,"bg":"black","emphasis":true},
+ {"layout":"word","text":"Each item","ms":850,"bg":"black","emphasis":false},
+ {"layout":"word","text":"Has an index","ms":1000,"bg":"black","emphasis":false},
+ {"layout":"word","text":"Starting at zero","ms":1100,"bg":"black","emphasis":false},
+ {"layout":"word","text":"Read it","ms":650,"bg":"palette","emphasis":false},
+ {"layout":"word","text":"Change it","ms":700,"bg":"palette","emphasis":true},
+ {"layout":"word","text":"Loop through","ms":900,"bg":"palette","emphasis":false},
+ {"layout":"word","text":"Fast and simple","ms":1000,"bg":"palette","emphasis":false},
+ {"layout":"word","text":"That is an array","ms":1200,"bg":"palette","emphasis":true}
 ]}
