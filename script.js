@@ -692,6 +692,27 @@ function isChatReply(scenes) {
   return noDiagram && Array.isArray(sc.steps) && sc.steps.length === 1;
 }
 
+const USE_DIAGRAM = true;
+const DIAGRAM_URL = "http://127.0.0.1:8000/diagram";
+async function fetchDiagram(question) {
+  try {
+    const res = await fetch(DIAGRAM_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: typeof chatHistory !== "undefined" ? chatHistory : [] }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const d = json && json.kind === "diagram" ? json.data : null;
+    if (!d || !Array.isArray(d.objects) || !d.objects.length || !Array.isArray(d.steps)) return null;
+    return d;
+  } catch (err) {
+    console.warn("diagram request failed, using the old flow:", err);
+    return null;
+  }
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
@@ -709,6 +730,14 @@ async function ask() {
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
+    const diagramData = USE_DIAGRAM ? await fetchDiagram(question) : null;
+    if (diagramData) {
+      stopCaptions();
+      caption.textContent = "";
+      setState("speaking");
+      await playDiagram(diagramData);
+      return;
+    }
 
     let data;
     try {

@@ -1,9 +1,10 @@
+import json
 import os
 from contextvars import ContextVar
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -169,6 +170,18 @@ def format_history(history: list[Turn]) -> str:
 @app.get("/")
 def hello():
     return {"message": "hello from the backend"}
+
+@app.post("/diagram")
+def diagram(q: Question):
+    if os.getenv("DIAGRAM_MOCK", "1") != "1":
+        raise HTTPException(status_code=501, detail="Real diagram generation is not built yet")
+    try:
+        data = json.loads((Path(__file__).parent / "diagram-demo.json").read_text())
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise HTTPException(status_code=500, detail="diagram-demo.json is missing or invalid")
+    if not isinstance(data, dict) or not isinstance(data.get("objects"), list) or not data["objects"] or not isinstance(data.get("steps"), list):
+        raise HTTPException(status_code=500, detail="diagram-demo.json is missing or invalid")
+    return {"kind": "diagram", "data": data}
 
 @app.post("/explain")
 def explain(q: Question):
