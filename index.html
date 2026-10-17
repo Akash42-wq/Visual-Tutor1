@@ -482,6 +482,74 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
 @keyframes punchIn { from { transform: scale(1.35); opacity: 0 } to { transform: none; opacity: 1 } }
 #beat-text.drop { animation: dropIn 0.22s ease-out both; }
 @keyframes dropIn { from { transform: translateY(-40px); opacity: 0 } to { transform: none; opacity: 1 } }
+#diagram-view {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  background: rgba(5, 10, 26, 0.92);
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 0.4s;
+}
+#diagram-view.show { opacity: 1; }
+#diagram-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+#diagram-svg line {
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+#diagram-svg line.visible { opacity: 1; }
+#diagram-svg line.on { filter: drop-shadow(0 0 8px var(--accent)); }
+#diagram-objects .obj {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.5s, box-shadow 0.4s;
+  color: #e3f0ff;
+  text-align: center;
+  font-size: clamp(18px, 2.4vw, 32px);
+}
+#diagram-objects .obj.visible { opacity: 1; }
+#diagram-objects .obj.on { box-shadow: 0 0 28px var(--accent); }
+.obj.box {
+  padding: 14px 22px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.obj.circle {
+  width: clamp(80px, 10vw, 140px);
+  height: clamp(80px, 10vw, 140px);
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  display: grid;
+  place-items: center;
+}
+.obj.label {
+  border: none;
+  background: none;
+}
+.obj.label.visible { opacity: 0.8; }
+#diagram-say {
+  position: absolute;
+  bottom: 8vh;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #e3f0ff;
+  font-size: clamp(20px, 2.6vw, 38px);
+  padding: 0 8vw;
+  margin: 0;
+}
   </style>
 </head>
 <body>
@@ -499,6 +567,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     </div>
   </div>
   <div id="beat-view"><div id="beat-flash"></div><div id="beat-text"></div></div>
+  <div id="diagram-view"><svg id="diagram-svg"></svg><div id="diagram-objects"></div><p id="diagram-say"></p></div>
   <input id="question" placeholder="Ask something, e.g. explain arrays" autocomplete="off">
   <div class="controls">
     <button data-set="idle">Idle</button>
@@ -506,6 +575,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     <button data-set="thinking">Thinking</button>
     <button data-set="speaking">Speaking</button>
     <button id="demoBeats">Beats demo</button>
+    <button id="demoDiagram">Diagram demo</button>
   </div>
 
   <script src="script.js"></script>

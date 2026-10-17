@@ -1,0 +1,17 @@
+{"objects":[
+ {"id":"variable","type":"box","text":"name","x":28,"y":38},
+ {"id":"value","type":"box","text":"Ada","x":72,"y":38},
+ {"id":"memory","type":"circle","text":"value","x":72,"y":68},
+ {"id":"caption","type":"label","text":"A variable points to a value","x":50,"y":16}
+],
+ "arrows":[
+  {"id":"points","from":"variable","to":"value"},
+  {"id":"stores","from":"value","to":"memory"}
+ ],
+ "steps":[
+  {"say":"A variable gives a value a name.","show":["variable","caption"],"highlight":["variable"],"ms":2200},
+  {"say":"Here, the name points to Ada.","show":["variable","value","points"],"highlight":["variable","points"],"ms":2400},
+  {"say":"The value is stored in memory.","show":["memory","stores"],"highlight":["memory","stores"],"ms":2200},
+  {"say":"The arrow shows what the variable refers to.","show":["variable","value","memory","points","stores"],"highlight":["points","stores"],"ms":2600},
+  {"say":"Change the value, and the name can point somewhere new.","show":["variable","value","memory","points","stores","caption"],"highlight":["variable","value"],"ms":2800}
+]}

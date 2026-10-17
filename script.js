@@ -10,6 +10,10 @@ const pauseButton = document.getElementById("pause-playback");
 const beatView = document.getElementById("beat-view");
 const beatText = document.getElementById("beat-text");
 const beatFlash = document.getElementById("beat-flash");
+const diagramView = document.getElementById("diagram-view");
+const diagramSvg = document.getElementById("diagram-svg");
+const diagramObjects = document.getElementById("diagram-objects");
+const diagramSay = document.getElementById("diagram-say");
 const root = document.documentElement;
 
 const API_URL = "http://127.0.0.1:8000/explain";
@@ -353,6 +357,115 @@ async function playBeats(data) {
         void beatFlash.offsetWidth;
         beatFlash.classList.add("go");
       }
+
+      async function playDiagram(data) {
+        if (!data || !Array.isArray(data.objects) || !data.objects.length || !Array.isArray(data.steps)) return;
+        const objects = [];
+        const objectIds = new Set();
+        for (const object of data.objects) {
+          if (!object || typeof object.id !== "string" || !["box", "circle", "label"].includes(object.type) ||
+              !Number.isFinite(object.x) || !Number.isFinite(object.y) || objectIds.has(object.id)) continue;
+          objectIds.add(object.id);
+          objects.push({
+            ...object,
+            x: Math.min(100, Math.max(0, object.x)),
+            y: Math.min(100, Math.max(0, object.y)),
+            text: String(object.text).slice(0, 40),
+          });
+        }
+        if (!objects.length) return;
+        const arrows = [];
+        const arrowIds = new Set();
+        for (const arrow of Array.isArray(data.arrows) ? data.arrows : []) {
+          if (!arrow || typeof arrow.id !== "string" || arrowIds.has(arrow.id) ||
+              !objectIds.has(arrow.from) || !objectIds.has(arrow.to)) continue;
+          arrowIds.add(arrow.id);
+          arrows.push(arrow);
+        }
+        const elements = new Map();
+        running = true;
+        stopRequested = false;
+        document.body.classList.add("takeover");
+        diagramSvg.replaceChildren();
+        diagramObjects.replaceChildren();
+        try {
+          for (const object of objects) {
+            const element = document.createElement("div");
+            element.className = `obj ${object.type}`;
+            element.dataset.id = object.id;
+            element.style.left = `${object.x}%`;
+            element.style.top = `${object.y}%`;
+            element.textContent = object.text;
+            diagramObjects.appendChild(element);
+            elements.set(object.id, element);
+          }
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+          marker.id = "diagram-arrow";
+          marker.setAttribute("viewBox", "0 0 10 10");
+          marker.setAttribute("refX", "9");
+          marker.setAttribute("refY", "5");
+          marker.setAttribute("markerWidth", "7");
+          marker.setAttribute("markerHeight", "7");
+          marker.setAttribute("orient", "auto-start-reverse");
+          const markerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          markerPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+          markerPath.style.fill = "var(--accent)";
+          marker.appendChild(markerPath);
+          const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+          defs.appendChild(marker);
+          diagramSvg.appendChild(defs);
+          const overlayRect = diagramView.getBoundingClientRect();
+          for (const arrow of arrows) {
+            const fromRect = elements.get(arrow.from).getBoundingClientRect();
+            const toRect = elements.get(arrow.to).getBoundingClientRect();
+            const fromX = fromRect.left - overlayRect.left + fromRect.width / 2;
+            const fromY = fromRect.top - overlayRect.top + fromRect.height / 2;
+            const toX = toRect.left - overlayRect.left + toRect.width / 2;
+            const toY = toRect.top - overlayRect.top + toRect.height / 2;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const distance = Math.hypot(dx, dy) || 1;
+            const ux = dx / distance;
+            const uy = dy / distance;
+            const startOffset = Math.min(fromRect.width, fromRect.height) / 2;
+            const endOffset = Math.min(toRect.width, toRect.height) / 2;
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.dataset.id = arrow.id;
+            line.setAttribute("x1", fromX + ux * startOffset);
+            line.setAttribute("y1", fromY + uy * startOffset);
+            line.setAttribute("x2", toX - ux * endOffset);
+            line.setAttribute("y2", toY - uy * endOffset);
+            line.setAttribute("marker-end", "url(#diagram-arrow)");
+            diagramSvg.appendChild(line);
+            elements.set(arrow.id, line);
+          }
+          diagramView.classList.add("show");
+          await wait(500);
+          for (const step of data.steps.slice(0, 12)) {
+            if (stopRequested) break;
+            elements.forEach((element) => element.classList.remove("on"));
+            for (const id of Array.isArray(step.show) ? step.show : []) {
+              if (elements.has(id)) elements.get(id).classList.add("visible");
+            }
+            for (const id of Array.isArray(step.highlight) ? step.highlight : []) {
+              if (elements.has(id)) elements.get(id).classList.add("on");
+            }
+            diagramSay.textContent = String(step.say || "").slice(0, 120);
+            const ms = Math.min(4000, Math.max(800, Number.isFinite(step.ms) ? step.ms : 2000));
+            await wait(ms);
+          }
+        } finally {
+          diagramView.classList.remove("show");
+          await wait(500);
+          diagramSvg.replaceChildren();
+          diagramObjects.replaceChildren();
+          diagramSay.textContent = "";
+          document.body.classList.remove("takeover");
+          running = false;
+          stopRequested = false;
+        }
+      }
       await wait(beat.ms);
     }
   } finally {
@@ -488,6 +601,21 @@ document.getElementById("demoBeats").addEventListener("click", async () => {
     console.error(err);
   } finally {
     running = false;
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && diagramView.classList.contains("show")) {
+    stopRequested = true;
+  }
+});
+document.getElementById("demoDiagram").addEventListener("click", async () => {
+  if (running) return;
+  try {
+    const response = await fetch("diagram-demo.json", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Diagram demo request failed: ${response.status}`);
+    await playDiagram(await response.json());
+  } catch (err) {
+    console.error(err);
   }
 });
 input.addEventListener("keydown", (e) => {
