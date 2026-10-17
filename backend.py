@@ -49,6 +49,7 @@ class Step(BaseModel):
 
 class Scene(BaseModel):
     title: str
+    intent: Literal["intro", "compare", "warning", "step", "recap"]
     diagram: Diagram
     steps: list[Step]
 
@@ -153,6 +154,9 @@ def explain(q: Question):
         "Reply as JSON: {scenes: [...]}.\n"
         "Each scene has: title (max 5 words), "
         "diagram {type, items}, and steps.\n"
+        "Each scene also has intent: one of intro (opening idea), compare (two things side by side), "
+        "warning (common mistake), step (walking through how it works), recap (summary). "
+        "Use intro for the first scene when there are several, and recap for the last when there are three or more.\n"
         "diagram.type is 'array' when the idea is a list of values, otherwise 'none' "
         "with an empty items list. Array items are short strings, at most 8 of them.\n"
         "diagram.items is the array as it looks at the START of the scene, before any step.\n"
