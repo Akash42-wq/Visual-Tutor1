@@ -779,42 +779,141 @@ input.addEventListener("keydown", (e) => {
 
 const micBtn = document.getElementById("micBtn");
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let micOn = false;
+let listening = false;
+let heard = "";
+let wasBusy = false;
+let startTimer = null;
+let startTimerPending = false;
+let micWatch = null;
+let micStream = null;
+let micCtx = null;
+let micAnalyser = null;
+let micRaf = null;
+let micLevel = 0;
+let recognition = null;
+
 if (!SR) {
   micBtn.disabled = true;
   micBtn.title = "Speech recognition needs Chrome or Edge";
 } else {
-  const recognition = new SR();
+  recognition = new SR();
   recognition.lang = "en-IN";
   recognition.interimResults = true;
   recognition.continuous = false;
   recognition.maxAlternatives = 1;
-  let listening = false;
-  let heard = "";
 
-  micBtn.addEventListener("click", () => {
-    if (running) return;
-    if (listening) {
-      recognition.stop();
-      return;
-    }
-    if (window.speechSynthesis) speechSynthesis.cancel();
-    heard = "";
-    input.value = "";
+  function startRec() {
+    if (!micOn || running || listening) return;
     try {
       recognition.start();
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  function stopMic() {
+    micOn = false;
+    heard = "";
+    clearInterval(micWatch);
+    micWatch = null;
+    clearTimeout(startTimer);
+    startTimer = null;
+    startTimerPending = false;
+    cancelAnimationFrame(micRaf);
+    micRaf = null;
+    if (micStream) micStream.getTracks().forEach((track) => track.stop());
+    if (micCtx) micCtx.close();
+    micStream = micCtx = micAnalyser = null;
+    micLevel = 0;
+    micBtn.style.setProperty("--lvl", 0);
+    micBtn.classList.remove("on", "busy");
+    micBtn.setAttribute("aria-pressed", "false");
+    micBtn.setAttribute("aria-label", "Turn microphone on");
+    micBtn.title = "Microphone off";
+    if (listening) recognition.abort();
+    if (!running) {
+      stage.style.setProperty("--level", 0);
+      setState("idle");
+    }
+  }
+
+  async function startMeter() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      micCtx = new AudioContext();
+      micAnalyser = micCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micCtx.createMediaStreamSource(micStream).connect(micAnalyser);
+      const loop = () => {
+        if (!micOn) return;
+        if (!running && micAnalyser) {
+          const buf = new Uint8Array(micAnalyser.fftSize);
+          micAnalyser.getByteTimeDomainData(buf);
+          let sum = 0;
+          for (const v of buf) {
+            const d = (v - 128) / 128;
+            sum += d * d;
+          }
+          const target = Math.min(1, Math.sqrt(sum / buf.length) * 4);
+          micLevel = micLevel * 0.8 + target * 0.2;
+          stage.style.setProperty("--level", micLevel.toFixed(3));
+          micBtn.style.setProperty("--lvl", micLevel.toFixed(3));
+        } else {
+          micLevel = 0;
+          micBtn.style.setProperty("--lvl", 0);
+        }
+        micRaf = requestAnimationFrame(loop);
+      };
+      loop();
     } catch (err) {
       console.warn(err);
     }
-  });
+  }
+
+  function startMic() {
+    micOn = true;
+    micBtn.classList.add("on");
+    micBtn.setAttribute("aria-pressed", "true");
+    micBtn.setAttribute("aria-label", "Turn microphone off");
+    micBtn.title = "Microphone on";
+    startMeter();
+    micWatch = setInterval(() => {
+      if (running) {
+        wasBusy = true;
+        micBtn.classList.add("busy");
+        if (listening) {
+          heard = "";
+          recognition.abort();
+        }
+      } else {
+        micBtn.classList.remove("busy");
+        if (wasBusy) {
+          wasBusy = false;
+          clearTimeout(startTimer);
+          startTimerPending = true;
+          startTimer = setTimeout(() => {
+            startTimerPending = false;
+            startTimer = null;
+            startRec();
+          }, 600);
+        } else if (!listening && !startTimerPending) {
+          startRec();
+        }
+      }
+    }, 250);
+    startRec();
+  }
 
   recognition.onstart = () => {
     listening = true;
-    micBtn.classList.add("rec");
-    micBtn.textContent = "Listening...";
-    setState("listening");
+    if (!running) setState("listening");
   };
 
   recognition.onresult = (event) => {
+    if (running) return;
     heard = Array.from(event.results)
       .map((result) => result[0].transcript)
       .join("");
@@ -822,36 +921,39 @@ if (!SR) {
   };
 
   recognition.onerror = (event) => {
-    if (running) return;
-    const messages = {
-      "not-allowed": "Mic is blocked. Allow it in the address bar.",
-      "service-not-allowed": "Mic is blocked. Allow it in the address bar.",
-      "no-speech": "I did not hear anything.",
-      network: "Speech recognition needs internet.",
-    };
-    const message = messages[event.error] || "Mic error.";
-    caption.textContent = message;
-    setTimeout(() => {
-      if (caption.textContent === message) caption.textContent = "";
-    }, 2500);
+    if (event.error === "no-speech" || event.error === "aborted") return;
+    if (!running) {
+      const messages = {
+        "not-allowed": "Mic is blocked. Allow it in the address bar.",
+        "service-not-allowed": "Mic is blocked. Allow it in the address bar.",
+        network: "Speech recognition needs internet.",
+        "audio-capture": "No microphone found.",
+      };
+      const message = messages[event.error] || "Mic error.";
+      caption.textContent = message;
+      setTimeout(() => {
+        if (caption.textContent === message) caption.textContent = "";
+      }, 2500);
+    }
+    if (event.error === "not-allowed" || event.error === "service-not-allowed" ||
+        event.error === "network" || event.error === "audio-capture") {
+      stopMic();
+    }
   };
 
   recognition.onend = () => {
     listening = false;
-    micBtn.classList.remove("rec");
-    micBtn.textContent = "Talk";
-    if (heard.trim() && !running) {
+    const text = heard.trim();
+    heard = "";
+    if (text && micOn && !running) {
+      input.value = text;
       ask();
-    } else if (!running) {
-      setState("idle");
+      input.value = "";
     }
   };
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && listening) {
-      recognition.abort();
-      heard = "";
-    }
+  micBtn.addEventListener("click", () => {
+    micOn ? stopMic() : startMic();
   });
 }
 
