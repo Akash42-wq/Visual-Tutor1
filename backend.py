@@ -10,7 +10,7 @@ from pathlib import Path
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
 
-MODEL = "gemini-3.8-flash"  # name from the current docs, check AI Studio if it errors
+MODEL = "gemini-2.5-flash"  # name from the current docs, check AI Studio if it errors
 
 client = genai.Client()  # picks up GEMINI_API_KEY from the environment
 app = FastAPI()

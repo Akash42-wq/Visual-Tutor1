@@ -17,6 +17,7 @@ let running = false;
 let paused = false;
 let skipRequested = false;
 let stopRequested = false;
+let typingTimer = null;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -353,6 +354,21 @@ async function ask() {
 
 buttons.forEach((b) => b.addEventListener("click", () => setState(b.dataset.set)));
 orb.addEventListener("click", ask);
+document.addEventListener("mousemove", (e) => {
+  stage.style.setProperty("--mx", ((e.clientX / window.innerWidth) * 2 - 1).toFixed(3));
+  stage.style.setProperty("--my", ((e.clientY / window.innerHeight) * 2 - 1).toFixed(3));
+});
+orb.addEventListener("click", () => {
+  const ripple = document.createElement("div");
+  ripple.className = "ripple";
+  ripple.addEventListener("animationend", () => ripple.remove());
+  stage.appendChild(ripple);
+});
+input.addEventListener("input", () => {
+  orb.classList.add("typing");
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => orb.classList.remove("typing"), 400);
+});
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ask();
 });
