@@ -8,6 +8,7 @@ const world = document.getElementById("world");
 const root = document.documentElement;
 
 const API_URL = "http://127.0.0.1:8000/explain";
+const IMAGE_BASE = "http://127.0.0.1:8000/images";
 const GAP = 1000; // distance between cards
 let rafId = null;
 let running = false;
@@ -111,11 +112,17 @@ function revealText(el, text, emphasis, style) {
 function buildWorld(scenes) {
   world.innerHTML = "";
   const cards = [];
-  scenes.forEach((_, i) => {
+  scenes.forEach((scene, i) => {
     const pos = { x: i * GAP, y: i % 2 === 0 ? -40 : 50, z: -rand(0, 140) };
     const card = document.createElement("div");
     card.className = "card";
     card.style.transform = `translate(-50%, -50%) translate3d(${pos.x}px, ${pos.y}px, ${pos.z}px)`;
+    if (scene.image) {
+      const img = document.createElement("img");
+      img.src = `${IMAGE_BASE}/${encodeURIComponent(scene.image)}.png`;
+      img.alt = "";
+      card.appendChild(img);
+    }
     const p = document.createElement("p");
     card.appendChild(p);
     world.appendChild(card);
@@ -135,6 +142,7 @@ function buildWorld(scenes) {
   }
   return cards;
 }
+
 
 function moveCamera(pos, first) {
   const name = nextCamera();
