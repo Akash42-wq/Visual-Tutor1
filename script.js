@@ -18,6 +18,8 @@ let paused = false;
 let skipRequested = false;
 let stopRequested = false;
 let typingTimer = null;
+let tip = null;
+let tipTimer = null;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -315,6 +317,24 @@ function fakeVoice() {
 
 /* ---------- ask the backend ---------- */
 
+function startThinkingCaptions() {
+  const lines = [
+    "Reading your question…",
+    "Picking an example…",
+    "Drawing it out…",
+    "Almost there…",
+  ];
+  let index = 0;
+  caption.textContent = lines[index];
+  const timer = setInterval(() => {
+    if (index < lines.length - 1) {
+      index++;
+      caption.textContent = lines[index];
+    }
+  }, 1500);
+  return () => clearInterval(timer);
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
@@ -322,6 +342,7 @@ async function ask() {
   try {
     caption.textContent = "";
     setState("thinking");
+    const stopCaptions = startThinkingCaptions();
 
     let data;
     try {
@@ -338,6 +359,7 @@ async function ask() {
       data = { spoken: "Could not reach the backend. Is it running?", scenes: [] };
     }
 
+    stopCaptions(); caption.textContent = "";
     setState("speaking");
     if (data.scenes && data.scenes.length) {
       await playScenes(data.scenes);
@@ -368,6 +390,24 @@ input.addEventListener("input", () => {
   orb.classList.add("typing");
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => orb.classList.remove("typing"), 400);
+});
+world.addEventListener("click", (event) => {
+  const cell = event.target.closest(".cell");
+  if (!cell) return;
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "tip";
+    sceneView.appendChild(tip);
+  }
+  const cells = [...cell.parentElement.querySelectorAll(":scope > .cell")];
+  const index = cells.indexOf(cell);
+  const value = cell.querySelector(".val").textContent;
+  tip.textContent = `Index ${index} holds ${value}`;
+  tip.style.left = `${event.clientX}px`;
+  tip.style.top = `${event.clientY - 40}px`;
+  tip.classList.add("show");
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => tip.classList.remove("show"), 2500);
 });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ask();

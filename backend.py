@@ -1,3 +1,5 @@
+import os
+from contextvars import ContextVar
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -6,13 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from google import genai
+from google.genai import types
 from pathlib import Path
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
 
-MODEL = "gemini-2.5-flash"  # name from the current docs, check AI Studio if it errors
+MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-2.5-flash").split(",") if m.strip()]
 
-client = genai.Client()  # picks up GEMINI_API_KEY from the environment
+client = genai.Client(http_options={"timeout": 20000})  # picks up GEMINI_API_KEY from the environment
+_requests_used = ContextVar("requests_used", default=0)
 app = FastAPI()
 
 # kept so the old frontend doesn't break while you rewrite it; delete later if unused
@@ -50,6 +54,67 @@ class Scene(BaseModel):
 
 class Plan(BaseModel):
     scenes: list[Scene]
+
+
+def extract_json(text: str) -> str:
+    stripped = text.strip()
+    lines = stripped.splitlines()
+    if lines and lines[0].strip().lower() in ("```json", "```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    stripped = "\n".join(lines).strip()
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start >= 0 and end > start:
+        return stripped[start:end + 1]
+    return stripped
+
+
+def _is_quota_error(error: Exception) -> bool:
+    text = str(error).upper()
+    return "429" in text or "RESOURCE_EXHAUSTED" in text
+
+
+def _is_not_found_error(error: Exception) -> bool:
+    text = str(error).upper()
+    return "404" in text or "NOT_FOUND" in text
+
+
+def _generate(model: str, prompt: str, use_schema: bool):
+    used = _requests_used.get()
+    if used >= 3:
+        raise RuntimeError("Gemini request limit reached")
+    _requests_used.set(used + 1)
+    if use_schema:
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=Plan,
+        )
+    else:
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+    return client.models.generate_content(model=model, contents=prompt, config=config)
+
+
+def call_model(model: str, prompt: str) -> Plan:
+    use_schema = True
+    try:
+        response = _generate(model, prompt, use_schema)
+    except Exception as e:
+        if _is_quota_error(e) or _is_not_found_error(e):
+            raise
+        text = str(e).lower()
+        if "schema" not in text and "response_schema" not in text and "400" not in text:
+            raise
+        use_schema = False
+        response = _generate(model, prompt, use_schema)
+
+    try:
+        return Plan.model_validate_json(extract_json(response.text))
+    except Exception:
+        retry_prompt = prompt + "\n\nReturn ONLY raw JSON matching the schema. No markdown, no commentary."
+        retry_response = _generate(model, retry_prompt, use_schema)
+        return Plan.model_validate_json(extract_json(retry_response.text))
 
 
 # ---------- validation ----------
@@ -102,25 +167,33 @@ def explain(q: Question):
         "type 'none' and one step.\n"
         f"User message: {q.question}"
     )
+    token = _requests_used.set(0)
+    last_error = None
     try:
-        interaction = client.interactions.create(
-            model=MODEL,
-            input=prompt,
-            response_format={
-                "type": "text",
-                "mime_type": "application/json",
-                "schema": Plan.model_json_schema(),
-            },
+        for model in MODELS:
+            try:
+                plan = call_model(model, prompt)
+                scenes = clean(plan)
+                if scenes:
+                    print("Gemini model used:", model)
+                    return {"scenes": [s.model_dump() for s in scenes]}
+                raise ValueError("Gemini returned no usable scenes")
+            except Exception as e:
+                last_error = e
+                print("Gemini error:", model, e)
+                if _requests_used.get() >= 3:
+                    break
+        quota = last_error is not None and _is_quota_error(last_error)
+        say = (
+            "Today's free Gemini limit is used up."
+            " Try again later."
+            if quota
+            else "Sorry, I couldn't get an answer. Check the backend terminal."
         )
-        plan = Plan.model_validate_json(interaction.output_text)
-        scenes = clean(plan)
-        if not scenes:
-            raise ValueError("Gemini returned no usable scenes")
-        return {"scenes": [s.model_dump() for s in scenes]}
-    except Exception as e:
-        print("Gemini error:", e)
         return {"scenes": [{
             "title": "Error",
             "diagram": {"type": "none", "items": []},
-            "steps": [{"say": "Sorry, I couldn't reach Gemini.", "highlight": [], "items": []}],
+            "steps": [{"say": say, "highlight": [], "items": []}],
         }]}
+    finally:
+        _requests_used.reset(token)
