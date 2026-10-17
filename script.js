@@ -1021,5 +1021,214 @@ if (!SR) {
   });
 }
 
+const arrayView = document.getElementById("array-view");
+const arrayTitle = document.getElementById("array-title");
+const arrayStage = document.getElementById("array-stage");
+const arraySay = document.getElementById("array-say");
+function sfx(name) {}
+const AEASE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+const ASPRING = "cubic-bezier(0.2, 1.25, 0.4, 1)";
+
+async function playArray(data) {
+  if (!data || !Array.isArray(data.steps)) return;
+  const steps = data.steps.slice(0, 15).map((rawStep) => {
+    const say = String(rawStep && rawStep.say || "").slice(0, 120);
+    const ops = [];
+    let buildSeen = false;
+    for (const rawOp of rawStep && Array.isArray(rawStep.do) ? rawStep.do : []) {
+      if (!rawOp || typeof rawOp !== "object" || typeof rawOp.op !== "string") continue;
+      if (rawOp.op === "build") {
+        if (buildSeen || !Array.isArray(rawOp.values) || rawOp.values.length < 2 || rawOp.values.length > 8) continue;
+        buildSeen = true;
+        ops.push({ op: "build", values: rawOp.values.map((value) => String(value).slice(0, 6)) });
+      } else if (rawOp.op === "focus" && Array.isArray(rawOp.at) && rawOp.at.every(Number.isInteger)) {
+        ops.push({ op: "focus", at: rawOp.at.slice() });
+      } else if (rawOp.op === "pointer" && typeof rawOp.name === "string" && Number.isInteger(rawOp.to)) {
+        ops.push({ op: "pointer", name: rawOp.name, to: rawOp.to });
+      } else if (rawOp.op === "set" && Number.isInteger(rawOp.at)) {
+        ops.push({ op: "set", at: rawOp.at, value: String(rawOp.value).slice(0, 6) });
+      } else if (rawOp.op === "swap" && Number.isInteger(rawOp.a) && Number.isInteger(rawOp.b) && rawOp.a !== rawOp.b) {
+        ops.push({ op: "swap", a: rawOp.a, b: rawOp.b });
+      }
+    }
+    return { say, ops };
+  });
+  if (running) return;
+  running = true;
+  stopRequested = false;
+  document.body.classList.add("takeover");
+  arrayStage.replaceChildren();
+  arrayTitle.textContent = String(data.title || "").slice(0, 120);
+  arraySay.textContent = "";
+  arrayView.classList.add("show");
+  await wait(600);
+  let n = 0;
+  let cw = 0;
+  let step = 0;
+  let slots = [];
+  let cells = [];
+  const pointers = new Map();
+  let lit = [];
+  const x = (i) => (i - (n - 1) / 2) * step;
+  const place = (element, index) => {
+    element.style.translate = `${x(index)}px 0px`;
+  };
+  const finish = async (animation) => {
+    try {
+      await animation.finished;
+    } catch (err) {
+      if (!stopRequested) throw err;
+    }
+  };
+  try {
+    let built = false;
+    for (const { say, ops } of steps) {
+      if (stopRequested) break;
+      cells.forEach((cell) => cell.classList.remove("lit", "soft"));
+      arraySay.textContent = say;
+      const talk = speak(say);
+      for (const op of ops) {
+        if (op.op === "build") {
+          if (built) continue;
+          built = true;
+          n = op.values.length;
+          cw = Math.min(110, Math.floor((window.innerWidth * 0.86) / (n * 1.2)));
+          step = cw * 1.2;
+          arrayStage.style.setProperty("--cw", `${cw}px`);
+          slots = [];
+          cells = [];
+          lit = [];
+          for (let i = 0; i < n; i += 1) {
+            const slot = document.createElement("div");
+            slot.className = "slot";
+            const index = document.createElement("span");
+            index.textContent = String(i);
+            slot.appendChild(index);
+            place(slot, i);
+            arrayStage.appendChild(slot);
+            slots.push(slot);
+            await wait(60);
+            slot.style.opacity = "1";
+          }
+          for (let i = 0; i < n; i += 1) {
+            const cell = document.createElement("div");
+            cell.className = "acell";
+            cell.textContent = op.values[i];
+            place(cell, i);
+            arrayStage.appendChild(cell);
+            cells.push(cell);
+            const animation = cell.animate([
+              { opacity: 0, translate: `${x(i)}px -60px`, scale: 0.85 },
+              { opacity: 1, translate: `${x(i)}px 0px`, scale: 1 },
+            ], { duration: 520, easing: ASPRING, fill: "forwards" });
+            sfx("build");
+            await finish(animation);
+            cell.style.opacity = "1";
+            cell.style.translate = `${x(i)}px 0px`;
+            animation.cancel();
+          }
+        } else if (!built) {
+          continue;
+        } else if (op.op === "focus") {
+          cells.forEach((cell) => cell.classList.remove("lit", "soft"));
+          lit = op.at.filter((index) => index >= 0 && index < n);
+          if (lit.length) {
+            cells.forEach((cell, index) => cell.classList.toggle("lit", lit.includes(index)));
+            cells.forEach((cell, index) => cell.classList.toggle("soft", !lit.includes(index)));
+          }
+          sfx("focus");
+        } else if (op.op === "pointer" && op.to >= 0 && op.to < n) {
+          let pointer = pointers.get(op.name);
+          if (!pointer) {
+            pointer = document.createElement("div");
+            pointer.className = "aptr";
+            pointer.textContent = op.name;
+            place(pointer, op.to);
+            arrayStage.appendChild(pointer);
+            pointers.set(op.name, pointer);
+            requestAnimationFrame(() => { pointer.style.opacity = "1"; });
+          } else {
+            place(pointer, op.to);
+          }
+          sfx("pointer");
+          await wait(600);
+        } else if (op.op === "set" && op.at >= 0 && op.at < n) {
+          const cell = cells[op.at];
+          const out = cell.animate([
+            { transform: "perspective(500px) rotateX(0deg)" },
+            { transform: "perspective(500px) rotateX(90deg)" },
+          ], { duration: 160, easing: AEASE, fill: "forwards" });
+          await finish(out);
+          cell.textContent = op.value;
+          out.cancel();
+          const inAnimation = cell.animate([
+            { transform: "perspective(500px) rotateX(-90deg)" },
+            { transform: "perspective(500px) rotateX(0deg)" },
+          ], { duration: 220, easing: AEASE, fill: "forwards" });
+          sfx("set");
+          await finish(inAnimation);
+          inAnimation.cancel();
+        } else if (op.op === "swap" && op.a >= 0 && op.a < n && op.b >= 0 && op.b < n) {
+          const ca = cells[op.a];
+          const cb = cells[op.b];
+          const dx = x(op.b) - x(op.a);
+          const lift = cw * 0.55;
+          const first = ca.animate([
+            { translate: `${x(op.a)}px 0px`, scale: 1 },
+            { translate: `${x(op.a) + dx / 2}px ${-lift}px`, scale: 1.08 },
+            { translate: `${x(op.b)}px 0px`, scale: 1 },
+          ], { duration: 800, easing: "ease-in-out", fill: "forwards" });
+          const second = cb.animate([
+            { translate: `${x(op.b)}px 0px` },
+            { translate: `${x(op.b) - dx / 2}px ${lift}px` },
+            { translate: `${x(op.a)}px 0px` },
+          ], { duration: 800, easing: "ease-in-out", fill: "forwards" });
+          sfx("swap");
+          await Promise.all([finish(first), finish(second)]);
+          ca.style.translate = `${x(op.b)}px 0px`;
+          cb.style.translate = `${x(op.a)}px 0px`;
+          first.cancel();
+          second.cancel();
+          cells[op.a] = cb;
+          cells[op.b] = ca;
+        }
+        if (stopRequested) break;
+      }
+      for (const pointer of pointers.values()) pointer.style.opacity = "1";
+      await talk;
+      if (stopRequested) break;
+      await wait(350);
+    }
+  } finally {
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    arrayView.classList.remove("show");
+    await wait(600);
+    arrayStage.getAnimations({ subtree: true }).forEach((animation) => animation.cancel());
+    arrayStage.replaceChildren();
+    arraySay.textContent = "";
+    arrayTitle.textContent = "";
+    document.body.classList.remove("takeover");
+    running = false;
+    stopRequested = false;
+  }
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && arrayView.classList.contains("show")) {
+    stopRequested = true;
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+});
+document.getElementById("demoArray").addEventListener("click", async () => {
+  if (running) return;
+  try {
+    const response = await fetch("array-demo.json", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Array demo request failed: ${response.status}`);
+    await playArray(await response.json());
+  } catch (err) {
+    console.error(err);
+  }
+});
+
 setState("idle");
 applyPalette(DEFAULT_PALETTE);

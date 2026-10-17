@@ -605,6 +605,21 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
 @keyframes micPulse { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.7); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #micBtn.on::after { animation: none; } }
 .orb[data-state="listening"] { scale: calc(1 + var(--level) * 0.16); filter: brightness(calc(1 + var(--level) * 0.5)) saturate(1.2); }
+#array-view { position: fixed; inset: 0; z-index: 6; background: rgba(5,10,26,0.94); opacity: 0; pointer-events: none; overflow: hidden; transition: opacity 0.5s ease; }
+#array-view.show { opacity: 1; }
+#array-title { position: absolute; top: 7vh; left: 0; right: 0; margin: 0; text-align: center; font-size: clamp(14px, 1.4vw, 20px); letter-spacing: 0.28em; text-transform: uppercase; color: color-mix(in srgb, var(--accent) 80%, white); opacity: 0.75; }
+#array-stage { position: absolute; left: 50%; top: 46%; width: 0; height: 0; }
+#array-stage::before { content: ""; position: absolute; left: -45vw; top: calc(var(--cw, 90px) * 0.9); width: 90vw; height: calc(var(--cw, 90px) * 0.5); background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); filter: blur(18px); pointer-events: none; }
+.slot, .acell { position: absolute; left: calc(var(--cw, 90px) / -2); top: calc(var(--cw, 90px) / -2); width: var(--cw, 90px); height: var(--cw, 90px); box-sizing: border-box; border-radius: 16px; }
+.slot { border: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent); opacity: 0; display: grid; align-items: end; justify-items: center; padding-bottom: calc(var(--cw, 90px) * -0.42); color: color-mix(in srgb, var(--accent) 70%, white); font-size: calc(var(--cw, 90px) * 0.2); }
+.slot span { position: absolute; top: calc(100% + 10px); opacity: 0.7; }
+.acell { display: grid; place-items: center; font-size: calc(var(--cw, 90px) * 0.42); font-weight: 700; color: #f2f8ff; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--c1) 38%, rgba(5,10,26,0.6))); box-shadow: 0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18); backdrop-filter: blur(6px); opacity: 0; transition: opacity 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease; }
+.acell.lit { opacity: 1; box-shadow: 0 0 36px color-mix(in srgb, var(--accent) 65%, transparent), 0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25); border-color: var(--accent); }
+.acell.soft { opacity: 0.5; }
+.aptr { position: absolute; left: calc(var(--cw, 90px) / -2); top: calc(var(--cw, 90px) * 0.95); width: var(--cw, 90px); text-align: center; color: var(--accent); font-size: calc(var(--cw, 90px) * 0.24); font-weight: 700; opacity: 0; transition: translate 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease; text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent); }
+.aptr::before { content: ""; display: block; width: 0; height: 0; margin: 0 auto 4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 14px solid var(--accent); }
+#array-say { position: absolute; bottom: 8vh; left: 50%; transform: translateX(-50%); max-width: 70vw; width: max-content; margin: 0; padding: 8px 20px; border-radius: 999px; font-size: clamp(15px, 1.6vw, 24px); color: #e3f0ff; background: rgba(5,10,26,0.6); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+#array-say:empty { display: none; }
   </style>
 </head>
 <body>
@@ -623,6 +638,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
   </div>
   <div id="beat-view"><div id="beat-flash"></div><div id="beat-text"></div></div>
   <div id="diagram-view"><svg id="diagram-svg"></svg><div id="diagram-objects"></div><p id="diagram-say"></p></div>
+  <div id="array-view"><p id="array-title"></p><div id="array-stage"></div><p id="array-say"></p></div>
   <input id="question" placeholder="Ask something, e.g. explain arrays" autocomplete="off">
   <div class="controls">
     <button data-set="idle">Idle</button>
@@ -631,6 +647,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     <button data-set="speaking">Speaking</button>
     <button id="demoBeats">Beats demo</button>
     <button id="demoDiagram">Diagram demo</button>
+    <button id="demoArray">Array demo</button>
   </div>
 
   <button id="micBtn" type="button" aria-pressed="false" aria-label="Turn microphone on" title="Microphone off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"/><path d="M12 17v4M8.5 21h7"/><path class="slash" d="M4 4l16 16"/></svg></button>

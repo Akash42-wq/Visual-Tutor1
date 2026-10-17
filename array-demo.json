@@ -1,0 +1,47 @@
+{
+  "title": "Arrays",
+  "steps": [
+    {
+      "say": "An array is a row of numbered slots.",
+      "do": [
+        { "op": "build", "values": ["7", "3", "9", "4"] }
+      ]
+    },
+    {
+      "say": "Each slot has an index, and counting starts at zero.",
+      "do": [
+        { "op": "focus", "at": [0] }
+      ]
+    },
+    {
+      "say": "So index two holds the nine.",
+      "do": [
+        { "op": "pointer", "name": "i", "to": 2 },
+        { "op": "focus", "at": [2] }
+      ]
+    },
+    {
+      "say": "We can change a value in place.",
+      "do": [
+        { "op": "set", "at": 1, "value": "5" }
+      ]
+    },
+    {
+      "say": "Or swap two values.",
+      "do": [
+        { "op": "swap", "a": 0, "b": 3 }
+      ]
+    },
+    {
+      "say": "The pointer can walk along the array.",
+      "do": [
+        { "op": "pointer", "name": "i", "to": 0 },
+        { "op": "pointer", "name": "i", "to": 3 }
+      ]
+    },
+    {
+      "say": "That is all an array is.",
+      "do": []
+    }
+  ]
+}
