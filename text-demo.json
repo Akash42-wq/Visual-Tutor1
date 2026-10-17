@@ -1,0 +1,109 @@
+{
+  "title": "Why the sky is blue",
+  "beats": [
+    {
+      "say": "Why is the sky blue, and not green or purple?",
+      "text": "WHY IS THE SKY BLUE?",
+      "lines": ["WHY IS THE SKY BLUE?"],
+      "role": "hook",
+      "layout": "word",
+      "emphasis": ["BLUE"],
+      "enter": "slam",
+      "exit": "cut",
+      "ms": 2600,
+      "transition": "fade",
+      "bg": "black"
+    },
+    {
+      "say": "Sunlight looks white, but it is really every color mixed together.",
+      "text": "Sunlight is every color mixed",
+      "lines": ["Sunlight is", "every color mixed"],
+      "role": "claim",
+      "layout": "stack",
+      "emphasis": ["color"],
+      "enter": "rise",
+      "exit": "fade",
+      "ms": 4200,
+      "transition": "cut",
+      "bg": "palette"
+    },
+    {
+      "say": "When it hits the air, tiny gas molecules scatter the light. Scientists call this Rayleigh scattering.",
+      "text": "Rayleigh scattering: light bouncing off gas",
+      "lines": ["Rayleigh scattering", "light bouncing off gas"],
+      "role": "term",
+      "layout": "term",
+      "emphasis": ["Rayleigh"],
+      "enter": "blur",
+      "exit": "fade",
+      "ms": 6000,
+      "transition": "cut",
+      "bg": "palette"
+    },
+    {
+      "say": "Blue light has a short wavelength, so it scatters far more than red.",
+      "text": "Blue scatters vs Red passes",
+      "lines": ["Blue scatters", "Red passes"],
+      "role": "contrast",
+      "layout": "split",
+      "emphasis": [],
+      "enter": "slide",
+      "exit": "fade",
+      "ms": 4200,
+      "transition": "cut",
+      "bg": "black"
+    },
+    {
+      "say": "About six times more.",
+      "text": "6x more scattering",
+      "lines": ["6x", "more scattering"],
+      "role": "number",
+      "layout": "stat",
+      "emphasis": [],
+      "enter": "countup",
+      "exit": "fade",
+      "ms": 2800,
+      "transition": "flash",
+      "bg": "black"
+    },
+    {
+      "say": "At noon you see blue overhead. At sunset the light travels farther, and the blue is scattered away.",
+      "text": "Noon: blue sky | Sunset: red sky",
+      "lines": ["Noon: blue sky", "Sunset: red sky"],
+      "role": "example",
+      "layout": "lines",
+      "emphasis": [],
+      "enter": "lines",
+      "exit": "fade",
+      "ms": 6200,
+      "transition": "cut",
+      "bg": "black"
+    },
+    {
+      "say": "Violet scatters even more, but the sun gives off less of it and our eyes are less sensitive to it.",
+      "text": "Why not violet? Weak sun, weak eyes",
+      "lines": ["Why not violet?", "Weak sun, weak eyes"],
+      "role": "claim",
+      "layout": "stack",
+      "emphasis": ["violet"],
+      "enter": "words",
+      "exit": "fade",
+      "ms": 6400,
+      "transition": "cut",
+      "bg": "palette"
+    },
+    {
+      "say": "So the sky is blue because air scatters short waves the most.",
+      "text": "Short waves scatter most",
+      "lines": ["Short waves scatter most"],
+      "role": "conclusion",
+      "layout": "word",
+      "emphasis": ["scatter"],
+      "enter": "fade",
+      "exit": "fade",
+      "ms": 4200,
+      "transition": "fade",
+      "bg": "palette"
+    }
+  ]
+}

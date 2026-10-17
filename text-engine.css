@@ -1,0 +1,48 @@
+#text-view { position: fixed; inset: 0; z-index: 6; background: #000; opacity: 0; pointer-events: none; overflow: hidden; transition: opacity 0.35s ease, background 0.3s ease; }
+#text-view.show { opacity: 1; }
+#text-view.pal { background: transparent; }
+#text-view #text-stage { position: absolute; inset: 0; display: grid; place-items: center; }
+#text-view .tb { display: grid; gap: 0.25em; justify-items: center; text-align: center; color: #fff; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; padding: 0 6vw; font-family: inherit; }
+#text-view .tb.out { opacity: 0; transition: opacity 0.25s ease; }
+#text-view .tb.xfade { animation: tFade 0.45s ease both; }
+#text-view .hl { color: var(--accent); text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 80%, transparent); }
+#text-view .tw { display: inline-block; margin-right: 0.28em; }
+#text-view .term-main { font-size: 1em; }
+#text-view .term-sub { font-size: 0.38em; font-weight: 500; opacity: 0.8; margin-top: 0.3em; }
+#text-view .l-split { grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4vw; }
+#text-view .half.left { text-align: right; }
+#text-view .half.right { text-align: left; }
+#text-view .divider { width: 2px; height: 1.4em; background: color-mix(in srgb, var(--accent) 60%, transparent); }
+#text-view .stat-num { font-size: 1.8em; color: var(--accent); }
+#text-view .stat-label { font-size: 0.4em; font-weight: 500; opacity: 0.85; }
+#text-view [data-enter="slam"] { animation: tSlam 0.22s ease-out both; }
+#text-view [data-enter="punch"] { animation: tPunch 0.2s cubic-bezier(0.2, 1.25, 0.4, 1) both; }
+#text-view [data-enter="drop"] { animation: tDrop 0.22s ease-out both; }
+#text-view [data-enter="rise"] { animation: tRise 0.5s ease-out both; }
+#text-view [data-enter="words"] .tw { animation: tWord 0.45s ease-out both; animation-delay: calc(var(--i) * 90ms); }
+#text-view [data-enter="blur"] { animation: tBlur 0.6s ease-out both; }
+#text-view [data-enter="scale"] { animation: tScale 0.5s ease-out both; }
+#text-view [data-enter="slide"] .half.left { animation: tSlideLeft 0.5s ease-out both; }
+#text-view [data-enter="slide"] .half.right { animation: tSlideRight 0.5s ease-out both; }
+#text-view [data-enter="slide"] .divider { animation: tDivider 0.5s ease-out both; }
+#text-view [data-enter="countup"] { animation: tFade 0.3s ease-out both; }
+#text-view [data-enter="lines"] .tl { animation: tRise 0.45s ease-out both; animation-delay: calc(var(--i) * 260ms); }
+#text-view [data-enter="fade"] { animation: tFade 0.6s ease-out both; }
+#text-view #text-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#text-view #text-flash.go { animation: tFlash 0.14s ease-out; }
+@keyframes tFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tFlash { from { opacity: 0.55; } to { opacity: 0; } }
+@keyframes tSlam { from { opacity: 0; transform: scale(1.8) translateX(-4px); } 45% { transform: scale(0.98) translateX(4px); } to { opacity: 1; transform: scale(1); } }
+@keyframes tPunch { from { opacity: 0; transform: scale(1.35); } to { opacity: 1; transform: scale(1); } }
+@keyframes tDrop { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tWord { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tBlur { from { opacity: 0; filter: blur(14px); } to { opacity: 1; filter: blur(0); } }
+@keyframes tScale { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes tSlideLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes tSlideRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes tDivider { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) {
+  #text-view [data-enter] { animation-name: tFade; }
+  #text-view [data-enter="words"] .tw, #text-view [data-enter="lines"] .tl { animation-name: tFade; }
+}
