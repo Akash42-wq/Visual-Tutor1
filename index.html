@@ -318,6 +318,28 @@ html::before {
 }
 .card.active { box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 50%, transparent); }
 .card p { font-size: clamp(28px, 4.2vw, 60px); }
+.diagram {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.cell {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  min-width: 70px;
+  padding: 12px 14px;
+  text-align: center;
+  font-size: clamp(18px, 2.4vw, 32px);
+  color: #e3f0ff;
+}
+.idx {
+  font-size: 0.55em;
+  opacity: 0.6;
+  display: block;
+  margin-top: 6px;
+}
 .rect {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);

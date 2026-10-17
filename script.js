@@ -117,16 +117,30 @@ function buildWorld(scenes) {
     const card = document.createElement("div");
     card.className = "card";
     card.style.transform = `translate(-50%, -50%) translate3d(${pos.x}px, ${pos.y}px, ${pos.z}px)`;
-    if (scene.image) {
-      const img = document.createElement("img");
-      img.src = `${IMAGE_BASE}/${encodeURIComponent(scene.image)}.png`;
-      img.alt = "";
-      card.appendChild(img);
+    const cells = [];
+    let diagram = null;
+    if (scene.diagram.type === "array") {
+      diagram = document.createElement("div");
+      diagram.className = "diagram";
+      scene.diagram.items.forEach((item, index) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        const value = document.createElement("span");
+        value.className = "val";
+        value.textContent = item;
+        const idx = document.createElement("span");
+        idx.className = "idx";
+        idx.textContent = index;
+        cell.append(value, idx);
+        diagram.appendChild(cell);
+        cells.push(cell);
+      });
+      card.appendChild(diagram);
     }
     const p = document.createElement("p");
     card.appendChild(p);
     world.appendChild(card);
-    cards.push({ card, p, pos });
+    cards.push({ card, p, pos, cells, diagram: scene.diagram });
   });
   // generic rectangles scattered across the whole space
   const length = scenes.length * GAP;
