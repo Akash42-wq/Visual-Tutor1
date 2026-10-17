@@ -45,7 +45,7 @@ function makePicker(items, runLength) {
   };
 }
 
-const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
+const nextTextStyle = makePicker(["type", "rise", "blur", "glow", "scale", "slide", "flip", "drop"], 5); // once per answer
 const CAMERAS = {
   pan:   { rx: 0,  ry: 0,  dz: 0 },
   tilt:  { rx: 14, ry: 16, dz: 0 },
@@ -176,7 +176,7 @@ async function playScenes(scenes) {
       moveCamera(pos, i === 0);
       await wait(900);
       card.classList.add("active");
-      await revealText(p, scenes[i].text, scenes[i].emphasis, style);
+      await revealText(p, scenes[i].steps.map((s) => s.say).join(" "), [], style);
       await wait(900);                               // voice timing will control this later
       card.classList.remove("active");
       card.classList.add("done");
@@ -214,33 +214,37 @@ async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
   running = true;
-  caption.textContent = "";
-  setState("thinking");
-
-  let data;
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
-    });
-    if (!res.ok) throw new Error("Server error " + res.status);
-    data = await res.json();
-  } catch (err) {
-    console.error(err);
-    data = { spoken: "Could not reach the backend. Is it running?", scenes: [] };
-  }
+    caption.textContent = "";
+    setState("thinking");
 
-  setState("speaking");
-  if (data.scenes && data.scenes.length) {
-    await playScenes(data.scenes);
-  } else {
-    caption.classList.remove("hidden");
-    await revealText(caption, data.spoken || data.text || "", [], nextTextStyle());
+    let data;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) throw new Error("Server error " + res.status);
+      data = await res.json();
+    } catch (err) {
+      console.error(err);
+      data = { spoken: "Could not reach the backend. Is it running?", scenes: [] };
+    }
+
+    setState("speaking");
+    if (data.scenes && data.scenes.length) {
+      await playScenes(data.scenes);
+    } else {
+      caption.classList.remove("hidden");
+      await revealText(caption, data.spoken || data.text || "", [], nextTextStyle());
+    }
+    await wait(800);
+  } finally {
+    setState("idle");
+    running = false;
   }
-  await wait(800);
-  setState("idle");
-  running = false;
 }
 
 buttons.forEach((b) => b.addEventListener("click", () => setState(b.dataset.set)));
