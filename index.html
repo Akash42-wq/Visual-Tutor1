@@ -318,6 +318,8 @@ html::before {
 }
 .card.active { box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 50%, transparent); }
 .card p { font-size: clamp(28px, 4.2vw, 60px); }
+.line { animation: lineFade 0.4s ease-out both; }
+@keyframes lineFade { from { opacity: 0; } to { opacity: 1; } }
 .diagram {
   display: flex;
   gap: 12px;
@@ -333,7 +335,13 @@ html::before {
   text-align: center;
   font-size: clamp(18px, 2.4vw, 32px);
   color: #e3f0ff;
+  transition: opacity 0.4s, transform 0.4s, box-shadow 0.4s;
 }
+.cell.on {
+  transform: translateY(-8px) scale(1.08);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.cell.dim { opacity: 0.35; }
 .idx {
   font-size: 0.55em;
   opacity: 0.6;

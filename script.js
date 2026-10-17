@@ -45,7 +45,7 @@ function makePicker(items, runLength) {
   };
 }
 
-const nextTextStyle = makePicker(["type", "rise", "blur", "glow", "scale", "slide", "flip", "drop"], 5); // once per answer
+const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
 const CAMERAS = {
   pan:   { rx: 0,  ry: 0,  dz: 0 },
   tilt:  { rx: 14, ry: 16, dz: 0 },
@@ -176,8 +176,6 @@ function moveCamera(pos, first) {
 }
 
 async function playScenes(scenes) {
-  const style = nextTextStyle();
-  console.log("text style:", style);
   const cards = buildWorld(scenes);
   document.body.classList.add("takeover");           // orb and controls fade out
   try {
@@ -185,12 +183,17 @@ async function playScenes(scenes) {
     sceneView.classList.add("show");                 // scene fills the page
     await wait(500);
     for (let i = 0; i < cards.length; i++) {
-      const { card, p, pos } = cards[i];
+      const { card, p, pos, cells } = cards[i];
       applyPalette(nextPalette());                   // page color shifts
       moveCamera(pos, i === 0);
       await wait(900);
       card.classList.add("active");
-      await revealText(p, scenes[i].steps.map((s) => s.say).join(" "), [], style);
+      for (const step of scenes[i].steps) {
+        applyHighlight(cells, step.highlight);
+        showLine(p, step.say);
+        await wait(Math.max(1800, step.say.split(/\s+/).length * 350));
+      }
+      applyHighlight(cells, []);
       await wait(900);                               // voice timing will control this later
       card.classList.remove("active");
       card.classList.add("done");
@@ -202,6 +205,25 @@ async function playScenes(scenes) {
     await wait(800);
     document.body.classList.remove("takeover");      // orb comes back
   }
+}
+
+function showLine(p, text) {
+  p.textContent = text;
+  p.classList.remove("line");
+  void p.offsetWidth;
+  p.classList.add("line");
+}
+
+function applyHighlight(cells, highlight) {
+  if (!cells) return;
+  cells.forEach((cell) => cell.classList.remove("on", "dim"));
+  if (!highlight.length) return;
+  highlight.forEach((index) => {
+    if (cells[index]) cells[index].classList.add("on");
+  });
+  cells.forEach((cell, index) => {
+    if (!highlight.includes(index)) cell.classList.add("dim");
+  });
 }
 
 /* ---------- orb states ---------- */
