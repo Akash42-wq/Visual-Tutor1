@@ -593,6 +593,8 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
   opacity: 1;
   background: color-mix(in srgb, var(--accent) 28%, transparent);
 }
+#micBtn.rec { background: #5a1a2e; border-color: #ff6a8a; color: #ffd6df; box-shadow: 0 0 16px rgba(255, 106, 138, 0.6); }
+#micBtn:disabled { opacity: 0.4; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -619,6 +621,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     <button data-set="speaking">Speaking</button>
     <button id="demoBeats">Beats demo</button>
     <button id="demoDiagram">Diagram demo</button>
+    <button id="micBtn">Talk</button>
   </div>
 
   <script src="script.js"></script>

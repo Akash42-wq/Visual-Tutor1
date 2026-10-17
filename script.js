@@ -777,5 +777,83 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ask();
 });
 
+const micBtn = document.getElementById("micBtn");
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) {
+  micBtn.disabled = true;
+  micBtn.title = "Speech recognition needs Chrome or Edge";
+} else {
+  const recognition = new SR();
+  recognition.lang = "en-IN";
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.maxAlternatives = 1;
+  let listening = false;
+  let heard = "";
+
+  micBtn.addEventListener("click", () => {
+    if (running) return;
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    heard = "";
+    input.value = "";
+    try {
+      recognition.start();
+    } catch (err) {
+      console.warn(err);
+    }
+  });
+
+  recognition.onstart = () => {
+    listening = true;
+    micBtn.classList.add("rec");
+    micBtn.textContent = "Listening...";
+    setState("listening");
+  };
+
+  recognition.onresult = (event) => {
+    heard = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join("");
+    input.value = heard;
+  };
+
+  recognition.onerror = (event) => {
+    if (running) return;
+    const messages = {
+      "not-allowed": "Mic is blocked. Allow it in the address bar.",
+      "service-not-allowed": "Mic is blocked. Allow it in the address bar.",
+      "no-speech": "I did not hear anything.",
+      network: "Speech recognition needs internet.",
+    };
+    const message = messages[event.error] || "Mic error.";
+    caption.textContent = message;
+    setTimeout(() => {
+      if (caption.textContent === message) caption.textContent = "";
+    }, 2500);
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    micBtn.classList.remove("rec");
+    micBtn.textContent = "Talk";
+    if (heard.trim() && !running) {
+      ask();
+    } else if (!running) {
+      setState("idle");
+    }
+  };
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && listening) {
+      recognition.abort();
+      heard = "";
+    }
+  });
+}
+
 setState("idle");
 applyPalette(DEFAULT_PALETTE);
