@@ -342,6 +342,11 @@ html::before {
   box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .cell.dim { opacity: 0.35; }
+.cell.changed { animation: cellFlip 0.6s ease-out; }
+@keyframes cellFlip {
+  0% { transform: perspective(400px) rotateX(-90deg); opacity: 0 }
+  100% { transform: none; opacity: 1 }
+}
 .idx {
   font-size: 0.55em;
   opacity: 0.6;

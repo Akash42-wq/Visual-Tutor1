@@ -183,13 +183,27 @@ async function playScenes(scenes) {
     sceneView.classList.add("show");                 // scene fills the page
     await wait(500);
     for (let i = 0; i < cards.length; i++) {
-      const { card, p, pos, cells } = cards[i];
+      const { card, p, pos, cells, diagram } = cards[i];
+      let current = null;
+      if (diagram.type === "array") current = [...diagram.items];
       applyPalette(nextPalette());                   // page color shifts
       moveCamera(pos, i === 0);
       await wait(900);
       card.classList.add("active");
       for (const step of scenes[i].steps) {
         applyHighlight(cells, step.highlight);
+        if (current && step.items.length === current.length && step.items.length) {
+          step.items.forEach((item, index) => {
+            if (item !== current[index]) {
+              const value = cells[index].querySelector(".val");
+              cells[index].classList.remove("changed");
+              void cells[index].offsetWidth;
+              value.textContent = item;
+              cells[index].classList.add("changed");
+            }
+          });
+          current = [...step.items];
+        }
         showLine(p, step.say);
         await wait(Math.max(1800, step.say.split(/\s+/).length * 350));
       }
