@@ -6,11 +6,49 @@ from diagrams import build_diagram
 from textgen import parse_plan
 
 
+def _ascii(text):
+    if not isinstance(text, str):
+        return text
+    try:
+        replacements = {
+            "\u2011": "-",
+            "\u2010": "-",
+            "\u2013": "-",
+            "\u2014": "-",
+            "\u2192": "to",
+            "\u2248": "about",
+            "\u201c": '"',
+            "\u201d": '"',
+            "\u2018": "'",
+            "\u2019": "'",
+        }
+        for source, target in replacements.items():
+            text = text.replace(source, target)
+        text = text.translate(str.maketrans({
+            "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
+            "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
+        }))
+        text = "".join(character for character in text if ord(character) < 128)
+        return re.sub(r"\s+", " ", text).strip()
+    except Exception:
+        return ""
+
+
+def _ascii_tree(value):
+    if isinstance(value, dict):
+        return {key: _ascii_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_ascii_tree(item) for item in value]
+    if isinstance(value, str):
+        return _ascii(value)
+    return value
+
+
 def build_lesson_prompt(question, history_block=""):
     clean_question = re.sub(r"\s+", " ", str(question)).strip()[:500]
     history = history_block if isinstance(history_block, str) else ""
     prompt = """You write a short animated lesson as 3 to 5 PARTS. Reply with ONLY raw JSON: {"title": str (max 5 words), "parts": [ ... ]}.
-A text part is {"type":"text","beats":[{"say","show","role","emphasis"}]}, with 3 to 4 beats. Every say is a full sentence explaining something in 10 to 20 words, never under 8 words. show is 2 to 6 words, shorter than say. role is one of hook, claim, term, contrast, number, example, conclusion. emphasis is [] or one word from show. For term, show is "RealWord: short meaning" using the actual word, never the literal word "Term"; say explains it normally and does not repeat that format. For contrast, show is "RealThing vs RealThing" with the two actual names; say explains the difference in a full sentence. For example, show is "a | b | c" with 2 to 4 real items; never use example for a plain claim. Number is only a well-known true fact; if unsure, use contrast or example. Across the whole lesson use at least two different roles from term, contrast, number, example. Make about 14 to 18 spoken sentences overall.
+A text part is {"type":"text","beats":[{"say","show","role","emphasis"}]}, with 3 to 4 beats. Every say is a full sentence explaining something in 10 to 20 words, never under 8 words. show is 2 to 6 words, shorter than say. role is one of hook, claim, term, contrast, number, example, conclusion. emphasis is [] or one word from show. For term, show is "RealWord: short meaning" using the actual word, never the literal word "Term"; say explains it normally and does not repeat that format. For contrast, show is "RealThing vs RealThing" with the two actual names; say explains the difference in a full sentence. For example, show is "a | b | c" with 2 to 4 real items; never use example for a plain claim. Number is only a well-known true fact; if unsure, use contrast or example. The number role is only for a single plain figure like "40% faster", never an equation or a formula. Across the whole lesson use at least two different roles from term, contrast, number, example. Make about 14 to 18 spoken sentences overall.
 A diagram part is {"type":"diagram","layout":"row|column|snake|hub|cycle","objects":[{"type":"circle|box|label","text":str}],"links":[[from,to]],"steps":[{"say":str,"focus":[int]}]}, with 4 to 6 shapes (text max 14 characters), at most 8 links, and 6 to 8 steps. Every important input, main thing, and output mentioned by steps is its own shape, and every shape is highlighted in at least one step. Each step's say is ONE sentence of 10 to 20 words that teaches one NEW fact. Never highlight the same shape in two steps in a row. Steps 1 to 4 each reveal a new shape or arrow. Inputs, parts and outputs in a process must be circles or boxes, never a label; use label only for a short note with no arrows. Order shapes as inputs, main thing, outputs. Layout: use hub ONLY when one central thing really connects with arrows to all the others; use row or snake for inputs, then a thing, then outputs, or for steps; column for layers; cycle for repeats. Arrows only where something really leads to something else.
 Order: part 1 is text (hook, then the big idea). Then a diagram. Then text (a term, contrast or number). Then, only if useful, a second diagram. The last part is text and ends with a conclusion beat. Never put two diagrams in a row. Use at least one diagram.
 Never invent statistics, dates or quotes. Never write coordinates. No emoji. Use plain ASCII only: write CO2, H2O and O2 without subscripts, use a normal hyphen, and use no arrows or special symbols in show or say.
@@ -34,7 +72,21 @@ def parse_lesson(text):
                 continue
             kind = part.get("type")
             if kind == "text":
-                plan = parse_plan(json.dumps({"beats": part.get("beats")}))
+                raw_beats = part.get("beats")
+                beats = []
+                if isinstance(raw_beats, list):
+                    for beat in raw_beats:
+                        if isinstance(beat, dict):
+                            beat = dict(beat)
+                            show = beat.get("show")
+                            if (
+                                beat.get("role") == "number"
+                                and isinstance(show, str)
+                                and any(marker in show for marker in ("=", "+", "\u2192", "->"))
+                            ):
+                                beat["role"] = "claim"
+                        beats.append(beat)
+                plan = parse_plan(json.dumps({"beats": beats}))
                 if not plan:
                     continue
                 beats = director.compile(plan["beats"], seed=None)
@@ -51,9 +103,10 @@ def parse_lesson(text):
         if len(parts) < 2 or not has_diagram:
             return None
         title = parsed.get("title")
-        return {
+        result = {
             "title": title.strip()[:60] if isinstance(title, str) else "",
             "parts": parts,
         }
+        return _ascii_tree(result)
     except Exception:
         return None

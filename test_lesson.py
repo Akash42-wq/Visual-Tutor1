@@ -184,6 +184,53 @@ def main():
         )
 
     passed &= run_case("prompt content and size", prompt_case)
+    def ascii_reply():
+        value = json.loads(valid_reply())
+        value["title"] = "Café \u2011 \u2192"
+        value["parts"][0]["beats"][0]["show"] = "Café \u2011 \u2192"
+        value["parts"][1]["objects"][0]["text"] = "Nœde"
+        result = parse_lesson(json.dumps(value, ensure_ascii=False))
+
+        def all_ascii(item):
+            if isinstance(item, str):
+                return item.isascii()
+            if isinstance(item, dict):
+                return all(all_ascii(value) for value in item.values())
+            if isinstance(item, list):
+                return all(all_ascii(value) for value in item)
+            return True
+
+        return result is not None and all_ascii(result)
+
+    passed &= run_case("ascii output", ascii_reply)
+
+    def equation_role():
+        value = json.loads(valid_reply())
+        value["parts"][0]["beats"][0]["role"] = "number"
+        value["parts"][0]["beats"][0]["show"] = "6CO2 + 6H2O -> sugar"
+        result = parse_lesson(json.dumps(value))
+        return result is not None and result["parts"][0]["data"]["beats"][0]["role"] == "claim"
+
+    passed &= run_case("equation becomes claim", equation_role)
+
+    def normal_number():
+        value = json.loads(valid_reply())
+        value["parts"][0]["beats"][0]["role"] = "number"
+        value["parts"][0]["beats"][0]["show"] = "40% faster"
+        result = parse_lesson(json.dumps(value))
+        return result is not None and result["parts"][0]["data"]["beats"][0]["role"] == "number"
+
+    passed &= run_case("plain number stays number", normal_number)
+
+    def number_prompt():
+        setup()
+        prompts = []
+        groq_client.chat = lambda model, prompt, key, **kwargs: (prompts.append(prompt) or "garbage")
+        backend.lesson(backend.Question(question="x" * 5000, history=[]))
+        prompt = prompts[0]
+        return "single plain figure" in prompt and "never an equation or a formula" in prompt and len(prompt) < 5500
+
+    passed &= run_case("number prompt rule", number_prompt)
     passed &= run_case("parser junk", lambda: all(parse_lesson(value) is None for value in (None, 5, "x", "{", "[]", '{"parts":5}')))
     return 0 if passed else 1
 
