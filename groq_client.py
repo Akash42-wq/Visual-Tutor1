@@ -35,12 +35,12 @@ def models_from_env(value) -> list[str]:
     return models[:3] or DEFAULT_MODELS.copy()
 
 
-def _chat_once(model, prompt, api_key, timeout, json_mode, reasoning=True):
+def _chat_once(model, prompt, api_key, timeout, json_mode, reasoning=True, max_tokens=2000):
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
-        "max_tokens": 2000,
+        "max_tokens": max_tokens,
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
@@ -81,10 +81,10 @@ def _chat_once(model, prompt, api_key, timeout, json_mode, reasoning=True):
         raise GroqError(None, _redact(error, api_key)) from error
 
 
-def chat(model, prompt, api_key, timeout=12, json_mode=True) -> str:
+def chat(model, prompt, api_key, timeout=12, json_mode=True, max_tokens=2000) -> str:
     try:
-        return _chat_once(model, prompt, api_key, timeout, json_mode)
+        return _chat_once(model, prompt, api_key, timeout, json_mode, max_tokens=max_tokens)
     except GroqError as error:
         if error.status == 400 and json_mode:
-            return _chat_once(model, prompt, api_key, timeout, False, reasoning=False)
+            return _chat_once(model, prompt, api_key, timeout, False, reasoning=False, max_tokens=max_tokens)
         raise

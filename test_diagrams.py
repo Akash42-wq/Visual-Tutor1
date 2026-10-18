@@ -154,6 +154,11 @@ def main():
         "steps": [{"say": "A"}, {"say": "B", "focus": [2]}],
     })
     passed &= check("label link dropped", label_link is not None and label_link["arrows"] == [{"id": "a0", "from": "n1", "to": "n2"}])
+    eight_steps = build_diagram({
+        "objects": [{"text": "A"}, {"text": "B"}],
+        "steps": [{"say": f"Step {i}"} for i in range(8)],
+    })
+    passed &= check("diagram keeps eight steps", eight_steps is not None and len(eight_steps["steps"]) == 8)
     return 0 if passed else 1
 
 

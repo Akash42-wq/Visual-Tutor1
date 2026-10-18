@@ -182,7 +182,7 @@ def build_diagram(content) -> dict | None:
         if not isinstance(raw_steps, list):
             return None
         steps = []
-        for raw_step in raw_steps[:6]:
+        for raw_step in raw_steps[:8]:
             if not isinstance(raw_step, dict):
                 continue
             say = raw_step.get("say")
