@@ -692,7 +692,7 @@ function isChatReply(scenes) {
   return noDiagram && Array.isArray(sc.steps) && sc.steps.length === 1;
 }
 
-const USE_DIAGRAM = true;
+const USE_DIAGRAM = false;
 const DIAGRAM_URL = "http://127.0.0.1:8000/diagram";
 async function fetchVisual(question) {
   try {
@@ -714,6 +714,27 @@ async function fetchVisual(question) {
   }
 }
 
+const USE_TEXT = true;
+const TEXT_URL = "http://127.0.0.1:8000/text";
+async function fetchText(question) {
+  try {
+    const res = await fetch(TEXT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: typeof chatHistory !== "undefined" ? chatHistory : [] }),
+      signal: AbortSignal.timeout(45000),
+    });
+    if (res.status === 429) return { error: "quota" };
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.kind === "text" && json.data && Array.isArray(json.data.beats) && json.data.beats.length) return { data: json.data };
+    return null;
+  } catch (err) {
+    console.warn("text request failed:", err);
+    return null;
+  }
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
@@ -731,6 +752,24 @@ async function ask() {
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
+    const text = USE_TEXT && typeof window.playText === "function" ? await fetchText(question) : null;
+    if (text && text.error === "quota") {
+      stopCaptions();
+      caption.textContent = "";
+      caption.classList.remove("hidden");
+      const msg = "Today's free Gemini limit is used up. Try again later.";
+      await Promise.all([revealText(caption, msg, [], nextTextStyle()), speak(msg)]);
+      await wait(800);
+      return;
+    }
+    if (text && text.data) {
+      stopCaptions();
+      caption.textContent = "";
+      setState("speaking");
+      running = false;
+      await window.playText(text.data);
+      return;
+    }
     const visual = USE_DIAGRAM ? await fetchVisual(question) : null;
     if (visual) {
       stopCaptions();

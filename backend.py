@@ -13,11 +13,12 @@ from google.genai import types
 from pathlib import Path
 
 import director
+import groq_client
 from textgen import build_prompt, parse_plan
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
 
-MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-2.5-flash").split(",") if m.strip()]
+MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-3.8-flash").split(",") if m.strip()]
 
 client = genai.Client(http_options={"timeout": 20000})  # picks up GEMINI_API_KEY from the environment
 _requests_used = ContextVar("requests_used", default=0)
@@ -278,24 +279,48 @@ def text_beats(q: Question):
     token = _requests_used.set(0)
     last_error = None
     try:
-        for model in MODELS:
-            try:
-                response = _generate(model, prompt, False)
-                plan = parse_plan(extract_json(response.text))
-                if plan is None:
-                    retry = prompt + "\n\nReturn ONLY raw JSON in the format above. No markdown, no commentary."
-                    response = _generate(model, retry, False)
-                    plan = parse_plan(extract_json(response.text))
-                beats = director.compile(plan["beats"]) if plan else []
-                if beats:
-                    print("Text model used:", model)
-                    return {"kind": "text", "data": {"title": plan["title"], "beats": beats}}
-                raise ValueError("Gemini returned no usable beats")
-            except Exception as e:
-                last_error = e
-                print("Text error:", model, e)
-                if _requests_used.get() >= 3:
-                    break
+        providers = [p.strip().lower() for p in os.getenv("TEXT_PROVIDERS", "groq,gemini").split(",") if p.strip()]
+        provider_configured = False
+        for provider in providers:
+            if provider == "groq":
+                key = os.getenv("GROQ_API_KEY", "").strip()
+                if not key:
+                    continue
+                provider_configured = True
+                for gm in groq_client.models_from_env(os.getenv("GROQ_MODELS")):
+                    try:
+                        text = groq_client.chat(gm, prompt, key)
+                        plan = parse_plan(extract_json(text))
+                        beats = director.compile(plan["beats"]) if plan else []
+                        if beats:
+                            print("Text model used: groq", gm)
+                            return {"kind": "text", "data": {"title": plan["title"], "beats": beats}}
+                        raise ValueError("Groq returned no usable beats")
+                    except Exception as e:
+                        last_error = e
+                        print("Text error: groq", gm, e)
+            elif provider == "gemini":
+                provider_configured = True
+                for model in MODELS:
+                    try:
+                        response = _generate(model, prompt, False)
+                        plan = parse_plan(extract_json(response.text))
+                        if plan is None:
+                            retry = prompt + "\n\nReturn ONLY raw JSON in the format above. No markdown, no commentary."
+                            response = _generate(model, retry, False)
+                            plan = parse_plan(extract_json(response.text))
+                        beats = director.compile(plan["beats"]) if plan else []
+                        if beats:
+                            print("Text model used:", model)
+                            return {"kind": "text", "data": {"title": plan["title"], "beats": beats}}
+                        raise ValueError("Gemini returned no usable beats")
+                    except Exception as e:
+                        last_error = e
+                        print("Text error:", model, e)
+                        if _requests_used.get() >= 3:
+                            break
+        if not provider_configured:
+            raise HTTPException(status_code=502, detail="No text provider is configured")
         status = 429 if (last_error is not None and _is_quota_error(last_error)) else 502
         raise HTTPException(status_code=status, detail="Gemini quota used up" if status == 429 else "Could not generate text beats")
     finally:

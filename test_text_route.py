@@ -34,6 +34,8 @@ def valid_reply(fenced=False):
 def run_case(name, callback):
     original_generate = backend._generate
     original_models = backend.MODELS
+    os.environ.pop("GROQ_API_KEY", None)
+    os.environ["TEXT_PROVIDERS"] = "gemini"
     try:
         result = callback()
         print(f"{name}: {'ok' if result else 'FAIL'}")
@@ -122,11 +124,24 @@ def main():
         os.environ["TEXT_MOCK"] = "0"
         calls = []
         backend.MODELS = ["m1", "m2", "m3"]
-        backend._generate = lambda model, prompt, use_schema: (calls.append((model, prompt)) or FakeResponse("garbage"))
+
+        def fake(model, prompt, use_schema):
+            used = backend._requests_used.get()
+            if used >= 3:
+                raise RuntimeError("Gemini request limit reached")
+            backend._requests_used.set(used + 1)
+            calls.append((model, prompt))
+            return FakeResponse("garbage")
+
+        backend._generate = fake
         try:
             backend.text_beats(QUESTION)
         except HTTPException as error:
-            return error.status_code == 502 and len(calls) <= 3
+            passed_case = error.status_code == 502 and len(calls) <= 3
+            if not passed_case:
+                print(f"garbage fallback assertion failed: status={error.status_code}, calls={len(calls)}")
+            return passed_case
+        print("garbage fallback assertion failed: no HTTPException")
         return False
 
     passed &= run_case("garbage fallback", all_garbage)
