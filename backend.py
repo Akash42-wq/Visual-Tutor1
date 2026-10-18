@@ -15,6 +15,7 @@ from pathlib import Path
 import director
 import groq_client
 from diagrams import build_chain
+from diagramgen import build_diagram_prompt, parse_diagram
 from textgen import build_prompt, parse_plan
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
@@ -343,3 +344,27 @@ def text_beats(q: Question):
         raise HTTPException(status_code=status, detail="Gemini quota used up" if status == 429 else "Could not generate text beats")
     finally:
         _requests_used.reset(token)
+
+
+@app.post("/visual")
+def visual(q: Question):
+    if os.getenv("TEXT_MOCK", "1") == "1":
+        return {"kind": "none"}
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if not key:
+        return {"kind": "none"}
+    prompt = build_diagram_prompt(q.question, format_history(q.history))
+    last_error = None
+    for model in groq_client.models_from_env(os.getenv("GROQ_MODELS"))[:2]:
+        try:
+            result = parse_diagram(extract_json(groq_client.chat(model, prompt, key)))
+            if isinstance(result, dict):
+                print("Visual model used: groq", model)
+                return {"kind": "diagram", "data": result}
+            if result == "none":
+                return {"kind": "none"}
+        except Exception as error:
+            last_error = error
+    if last_error is not None and _is_quota_error(last_error):
+        raise HTTPException(status_code=429, detail="Groq quota used up")
+    return {"kind": "none"}
