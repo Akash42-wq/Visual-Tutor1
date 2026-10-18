@@ -24,6 +24,7 @@ let running = false;
 let paused = false;
 let skipRequested = false;
 let stopRequested = false;
+let lessonActive = false;
 let typingTimer = null;
 let tip = null;
 let tipTimer = null;
@@ -412,7 +413,7 @@ function growArrow(line, geo, ms) {
 }
 
 const ARROW_GAP = 16;
-async function playDiagram(data) {
+async function playDiagram(data, opts) {
   const arrowGeo = new Map();
   if (!data || !Array.isArray(data.objects) || !data.objects.length || !Array.isArray(data.steps)) return;
   const objects = [];
@@ -456,7 +457,7 @@ async function playDiagram(data) {
   const elements = new Map();
   const codeLines = new Map();
   running = true;
-  stopRequested = false;
+  if (!(opts && opts.keep)) stopRequested = false;
   document.body.classList.add("takeover");
   diagramSvg.replaceChildren();
   diagramObjects.replaceChildren();
@@ -592,9 +593,11 @@ async function playDiagram(data) {
     diagramSvg.replaceChildren();
     diagramObjects.replaceChildren();
     diagramSay.textContent = "";
-    document.body.classList.remove("takeover");
-    running = false;
-    stopRequested = false;
+    if (!(opts && opts.keep)) {
+      document.body.classList.remove("takeover");
+      running = false;
+      stopRequested = false;
+    }
   }
 }
 
@@ -773,6 +776,58 @@ async function fetchVisualDiagram(question) {
   }
 }
 
+const USE_LESSON = true;
+async function playLesson(lesson) {
+  running = true;
+  stopRequested = false;
+  lessonActive = true;
+  document.body.classList.add("takeover");
+  try {
+    for (const [index, part] of lesson.parts.entries()) {
+      if (stopRequested) break;
+      if (part.kind === "text") await window.playText(part.data, { keep: true });
+      if (part.kind === "diagram") await playDiagram(part.data, { keep: true });
+      if (!stopRequested && index < lesson.parts.length - 1) await wait(150);
+    }
+  } finally {
+    lessonActive = false;
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    applyPalette(DEFAULT_PALETTE);
+    await wait(300);
+    document.body.classList.remove("takeover");
+    running = false;
+    stopRequested = false;
+  }
+}
+
+async function fetchLesson(question) {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/lesson", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: typeof chatHistory !== "undefined" ? chatHistory : [] }),
+      signal: AbortSignal.timeout(55000),
+    });
+    if (res.status === 429) return { error: "quota" };
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.kind === "lesson" && json.data && Array.isArray(json.data.parts) && json.data.parts.length >= 2) {
+      return { data: json.data };
+    }
+    return null;
+  } catch (err) {
+    console.warn("lesson request failed:", err);
+    return null;
+  }
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && lessonActive) {
+    stopRequested = true;
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+});
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
@@ -790,7 +845,29 @@ async function ask() {
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
-    const visualDiagram = typeof playDiagram === "function" ? await fetchVisualDiagram(question) : null;
+    let lessonTried = false;
+    if (USE_LESSON && typeof window.playText === "function" && typeof playDiagram === "function") {
+      lessonTried = true;
+      const lesson = await fetchLesson(question);
+      if (lesson && lesson.error === "quota") {
+        stopCaptions();
+        caption.textContent = "";
+        caption.classList.remove("hidden");
+        const msg = "Too many questions at once. Wait a minute and try again.";
+        await Promise.all([revealText(caption, msg, [], nextTextStyle()), speak(msg)]);
+        await wait(800);
+        return;
+      }
+      if (lesson && lesson.data) {
+        stopCaptions();
+        caption.textContent = "";
+        setState("speaking");
+        running = false;
+        await playLesson(lesson.data);
+        return;
+      }
+    }
+    const visualDiagram = !lessonTried && typeof playDiagram === "function" ? await fetchVisualDiagram(question) : null;
     if (visualDiagram && visualDiagram.error === "quota") {
       // Continue to the text provider when visual quota is exhausted.
     } else if (visualDiagram && visualDiagram.data) {
@@ -937,6 +1014,18 @@ document.getElementById("demoShapes").addEventListener("click", async () => {
     if (!response.ok) throw new Error(`Shapes demo request failed: ${response.status}`);
     const json = await response.json();
     await playDiagram(json.data);
+  } catch (err) {
+    console.error(err);
+  }
+});
+document.getElementById("demoLesson").addEventListener("click", async () => {
+  if (running) return;
+  try {
+    const response = await fetch("lesson-demo.json", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Lesson demo request failed: ${response.status}`);
+    const j = await response.json();
+    const lesson = j && j.data && j.data.parts ? j.data : j;
+    await playLesson(lesson);
   } catch (err) {
     console.error(err);
   }

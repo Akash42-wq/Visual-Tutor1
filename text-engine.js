@@ -119,11 +119,11 @@
     rafs.push(requestAnimationFrame(frame));
   }
 
-  async function playText(data) {
+  async function playText(data, opts) {
     const clean = sanitize(data);
-    if (!clean || running) return;
+    if (!clean || (running && !(opts && opts.keep))) return;
     running = true;
-    stopRequested = false;
+    if (!(opts && opts.keep)) stopRequested = false;
     document.body.classList.add("takeover");
     const view = document.getElementById("text-view");
     const flash = document.getElementById("text-flash");
@@ -175,12 +175,14 @@
       await waitLocal(500);
       stage.replaceChildren();
       view.classList.remove("pal");
-      if (typeof applyPalette === "function" && typeof DEFAULT_PALETTE !== "undefined") {
+      if (!(opts && opts.keep) && typeof applyPalette === "function" && typeof DEFAULT_PALETTE !== "undefined") {
         applyPalette(DEFAULT_PALETTE);
       }
-      document.body.classList.remove("takeover");
-      running = false;
-      stopRequested = false;
+      if (!(opts && opts.keep)) {
+        document.body.classList.remove("takeover");
+        running = false;
+        stopRequested = false;
+      }
     }
   }
 
