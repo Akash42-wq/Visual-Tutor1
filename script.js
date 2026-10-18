@@ -750,6 +750,29 @@ async function fetchText(question) {
   }
 }
 
+async function fetchVisualDiagram(question) {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/visual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: typeof chatHistory !== "undefined" ? chatHistory : [] }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (res.status === 429) return { error: "quota" };
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.kind === "diagram" && json.data &&
+        Array.isArray(json.data.objects) && json.data.objects.length &&
+        Array.isArray(json.data.steps) && json.data.steps.length) {
+      return { data: json.data };
+    }
+    return null;
+  } catch (err) {
+    console.warn("visual diagram request failed:", err);
+    return null;
+  }
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question || running) return;
@@ -767,6 +790,17 @@ async function ask() {
     caption.textContent = "";
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
+    const visualDiagram = typeof playDiagram === "function" ? await fetchVisualDiagram(question) : null;
+    if (visualDiagram && visualDiagram.error === "quota") {
+      // Continue to the text provider when visual quota is exhausted.
+    } else if (visualDiagram && visualDiagram.data) {
+      stopCaptions();
+      caption.textContent = "";
+      setState("speaking");
+      running = false;
+      await playDiagram(visualDiagram.data);
+      return;
+    }
     const text = USE_TEXT && typeof window.playText === "function" ? await fetchText(question) : null;
     if (text && text.error) {
       stopCaptions();
@@ -892,6 +926,17 @@ document.getElementById("demoDiagram").addEventListener("click", async () => {
     const response = await fetch("diagram-demo.json", { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error(`Diagram demo request failed: ${response.status}`);
     await playDiagram(await response.json());
+  } catch (err) {
+    console.error(err);
+  }
+});
+document.getElementById("demoShapes").addEventListener("click", async () => {
+  if (running) return;
+  try {
+    const response = await fetch("http://127.0.0.1:8000/diagram/shapes-demo", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Shapes demo request failed: ${response.status}`);
+    const json = await response.json();
+    await playDiagram(json.data);
   } catch (err) {
     console.error(err);
   }

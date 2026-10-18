@@ -14,7 +14,7 @@ from pathlib import Path
 
 import director
 import groq_client
-from diagrams import build_chain
+from diagrams import build_chain, build_diagram
 from diagramgen import build_diagram_prompt, parse_diagram
 from textgen import build_prompt, parse_plan
 
@@ -368,3 +368,28 @@ def visual(q: Question):
     if last_error is not None and _is_quota_error(last_error):
         raise HTTPException(status_code=429, detail="Groq quota used up")
     return {"kind": "none"}
+
+
+@app.get("/diagram/shapes-demo")
+def shapes_demo():
+    result = build_diagram({
+        "objects": [
+            {"type": "box", "text": "Phone"},
+            {"type": "circle", "text": "Wi-Fi"},
+            {"type": "box", "text": "Router"},
+            {"type": "circle", "text": "Internet"},
+            {"type": "box", "text": "Server"},
+            {"type": "label", "text": "Page"},
+        ],
+        "links": [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]],
+        "steps": [
+            {"say": "A request starts at the phone.", "focus": [0]},
+            {"say": "It travels through Wi-Fi and the router.", "focus": [1, 2]},
+            {"say": "The internet carries it onward.", "focus": [3]},
+            {"say": "The server receives the request.", "focus": [4]},
+            {"say": "A page comes back to the phone.", "focus": [5]},
+        ],
+    })
+    if result is None:
+        raise HTTPException(status_code=500)
+    return {"kind": "diagram", "data": result}
