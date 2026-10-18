@@ -12,6 +12,9 @@ from google import genai
 from google.genai import types
 from pathlib import Path
 
+import director
+from textgen import build_prompt, parse_plan
+
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
 
 MODELS = [m.strip() for m in os.getenv("GEMINI_MODELS", "gemini-2.5-flash").split(",") if m.strip()]
@@ -253,5 +256,47 @@ def explain(q: Question):
             "diagram": {"type": "none", "items": []},
             "steps": [{"say": say, "highlight": [], "items": []}],
         }]}
+    finally:
+        _requests_used.reset(token)
+
+@app.post("/text")
+def text_beats(q: Question):
+    mode = os.getenv("TEXT_MOCK", "1")
+    if mode not in ("0", "1"):
+        raise HTTPException(status_code=501, detail="TEXT_MOCK must be 0 or 1")
+    if mode == "1":
+        path = Path(__file__).parent / "text-demo.json"
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            raise HTTPException(status_code=500, detail="text-demo.json is missing or invalid")
+        if not isinstance(data, dict) or not isinstance(data.get("beats"), list) or not data["beats"]:
+            raise HTTPException(status_code=500, detail="text-demo.json is missing or invalid")
+        return {"kind": "text", "data": data}
+
+    prompt = build_prompt(q.question, format_history(q.history))
+    token = _requests_used.set(0)
+    last_error = None
+    try:
+        for model in MODELS:
+            try:
+                response = _generate(model, prompt, False)
+                plan = parse_plan(extract_json(response.text))
+                if plan is None:
+                    retry = prompt + "\n\nReturn ONLY raw JSON in the format above. No markdown, no commentary."
+                    response = _generate(model, retry, False)
+                    plan = parse_plan(extract_json(response.text))
+                beats = director.compile(plan["beats"]) if plan else []
+                if beats:
+                    print("Text model used:", model)
+                    return {"kind": "text", "data": {"title": plan["title"], "beats": beats}}
+                raise ValueError("Gemini returned no usable beats")
+            except Exception as e:
+                last_error = e
+                print("Text error:", model, e)
+                if _requests_used.get() >= 3:
+                    break
+        status = 429 if (last_error is not None and _is_quota_error(last_error)) else 502
+        raise HTTPException(status_code=status, detail="Gemini quota used up" if status == 429 else "Could not generate text beats")
     finally:
         _requests_used.reset(token)
