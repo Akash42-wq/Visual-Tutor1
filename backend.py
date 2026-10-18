@@ -408,11 +408,15 @@ def lesson(q: Question):
     last_error = None
     for model in groq_client.models_from_env(os.getenv("GROQ_MODELS"))[:2]:
         try:
-            result = parse_lesson(extract_json(groq_client.chat(model, prompt, key, timeout=25, max_tokens=3500)))
+            text = groq_client.chat(model, prompt, key, timeout=25, max_tokens=3500)
+            result = parse_lesson(extract_json(text))
             if isinstance(result, dict):
                 print("Lesson model used: groq", model)
                 return {"kind": "lesson", "data": result}
+            if result is None:
+                print("Lesson unusable:", model, "length", len(text), repr(text[:400]), "...", repr(text[-150:]))
         except Exception as error:
+            print("Lesson error:", model, error)
             last_error = error
     if last_error is not None and _is_quota_error(last_error):
         raise HTTPException(status_code=429, detail="Groq quota used up")
