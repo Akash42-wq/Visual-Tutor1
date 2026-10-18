@@ -7,8 +7,8 @@ from diagrams import build_diagram
 def build_diagram_prompt(question, history_block="") -> str:
     clean_question = re.sub(r"\s+", " ", str(question)).strip()[:500]
     history = history_block if isinstance(history_block, str) else ""
-    prompt = """You pick a simple diagram made of shapes, or say none. Reply with ONLY raw JSON.
-Use shapes ONLY when the idea is things connected, in sequence, or flowing: a process, data moving between parts, a linked structure, a cycle written as a chain, parts of a system. For definitions, opinions, history, math, or general explanation, reply exactly {"diagram":"none"}.
+    prompt = """Draw EVERY question as a diagram. Break the idea into 2 to 6 key parts and show how they relate. Choose the layout to fit: hub = one idea with its parts around it (definitions, "what is X"); row or snake = steps, cause then effect, a process; column = layers or a stack; cycle = something that repeats; for "A vs B" use two boxes and put a short label note under each. Use arrows only where something really leads to something else. Reply with ONLY raw JSON.
+Reply exactly {"diagram":"none"} ONLY for greetings, opinions, requests for a long list, or questions that cannot be broken into parts.
 Format: {"title": str (max 5 words), "layout" (optional):"row"|"column"|"snake"|"hub"|"cycle", "objects":[{"type":"circle"|"box"|"label","text":str}], "links":[[from,to]], "steps":[{"say":str,"focus":[int]}]}.
 Use 2 to 6 objects, in the order they should appear. text is max 14 characters, 1 to 2 words. circle for a node or a thing, box for a part or a system, label for a note. links are pairs of object indexes (the arrow goes from the first to the second). Use at most 8 links.
 Choose layout as follows: row = a short sequence; column = a top-to-bottom flow or stack; snake = a longer sequence of 4 to 6 steps; hub = one thing connected to several others; cycle = something that repeats, with the last link going back to the first. Links are free: use arrows only where something really flows from one shape to another. A label is a short note with no arrows. Vary the choice of layout and shapes to fit the idea.

@@ -151,7 +151,16 @@ def main():
         result = backend.visual(backend.Question(question="x" * 5000, history=[]))
         prompt = prompts[0]
         lower = prompt.lower()
-        return result == {"kind": "none"} and "x" * 500 in prompt and len(prompt) < 3000 and prompt.rfind("student message") > lower.rfind("rules")
+        return (
+            result == {"kind": "none"}
+            and "x" * 500 in prompt
+            and len(prompt) < 3000
+            and prompt.rfind("student message") > lower.rfind("rules")
+            and "EVERY" in prompt
+            and "ONLY when" not in prompt
+            and '{"diagram":"none"}' in prompt
+            and "hub" in prompt
+        )
 
     passed &= run_case("prompt safety and size", prompt_case)
 
