@@ -169,7 +169,15 @@ def main():
         groq_client.chat = lambda model, prompt, key, **kwargs: (prompts.append(prompt) or "garbage")
         backend.lesson(backend.Question(question="x" * 5000, history=[]))
         prompt = prompts[0]
-        return len(prompt) < 5500 and "diagram" in prompt.lower() and "hook" in prompt.lower() and prompt.rfind("student message") > prompt.lower().rfind("rules")
+        return (
+            len(prompt) < 5500
+            and "diagram" in prompt.lower()
+            and "hook" in prompt.lower()
+            and "3 to 4 beats" in prompt
+            and "never a label" in prompt.lower()
+            and "ascii" in prompt.lower()
+            and prompt.rfind("student message") > prompt.lower().rfind("rules")
+        )
 
     passed &= run_case("prompt content and size", prompt_case)
     passed &= run_case("parser junk", lambda: all(parse_lesson(value) is None for value in (None, 5, "x", "{", "[]", '{"parts":5}')))

@@ -168,12 +168,16 @@ def build_diagram(content) -> dict | None:
                 start == end
                 or not 0 <= start < n
                 or not 0 <= end < n
-                or objects[start]["type"] == "label"
-                or objects[end]["type"] == "label"
                 or (start, end) in links
             ):
                 continue
             links.append((start, end))
+            if objects[start]["type"] == "label":
+                objects[start]["type"] = "box"
+                output_objects[start]["type"] = "box"
+            if objects[end]["type"] == "label":
+                objects[end]["type"] = "box"
+                output_objects[end]["type"] = "box"
             if len(links) == 8:
                 break
         arrows = [{"id": f"a{i}", "from": f"n{start}", "to": f"n{end}"} for i, (start, end) in enumerate(links)]

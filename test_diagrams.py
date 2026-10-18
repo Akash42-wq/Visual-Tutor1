@@ -153,7 +153,17 @@ def main():
         "links": [[0, 1], [1, 2], [2, 0]],
         "steps": [{"say": "A"}, {"say": "B", "focus": [2]}],
     })
-    passed &= check("label link dropped", label_link is not None and label_link["arrows"] == [{"id": "a0", "from": "n1", "to": "n2"}])
+    passed &= check("linked label becomes box", label_link is not None and label_link["objects"][0]["type"] == "box" and label_link["arrows"] == [
+        {"id": "a0", "from": "n0", "to": "n1"},
+        {"id": "a1", "from": "n1", "to": "n2"},
+        {"id": "a2", "from": "n2", "to": "n0"},
+    ])
+    unlinked_label = build_diagram({
+        "objects": [{"type": "label", "text": "Note"}, {"text": "A"}, {"text": "B"}],
+        "links": [[1, 2]],
+        "steps": [{"say": "A"}, {"say": "B", "focus": [2]}],
+    })
+    passed &= check("unlinked label stays label", unlinked_label is not None and unlinked_label["objects"][0]["type"] == "label")
     eight_steps = build_diagram({
         "objects": [{"text": "A"}, {"text": "B"}],
         "steps": [{"say": f"Step {i}"} for i in range(8)],
