@@ -35,7 +35,7 @@ def models_from_env(value) -> list[str]:
     return models[:3] or DEFAULT_MODELS.copy()
 
 
-def _chat_once(model, prompt, api_key, timeout, json_mode):
+def _chat_once(model, prompt, api_key, timeout, json_mode, reasoning=True):
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -44,6 +44,8 @@ def _chat_once(model, prompt, api_key, timeout, json_mode):
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
+    if reasoning and model.startswith("openai/gpt-oss"):
+        payload["reasoning_effort"] = "low"
     request = urllib.request.Request(
         URL,
         data=json.dumps(payload).encode("utf-8"),
@@ -79,10 +81,10 @@ def _chat_once(model, prompt, api_key, timeout, json_mode):
         raise GroqError(None, _redact(error, api_key)) from error
 
 
-def chat(model, prompt, api_key, timeout=30, json_mode=True) -> str:
+def chat(model, prompt, api_key, timeout=12, json_mode=True) -> str:
     try:
         return _chat_once(model, prompt, api_key, timeout, json_mode)
     except GroqError as error:
         if error.status == 400 and json_mode:
-            return _chat_once(model, prompt, api_key, timeout, False)
+            return _chat_once(model, prompt, api_key, timeout, False, reasoning=False)
         raise

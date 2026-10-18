@@ -95,9 +95,11 @@ def main():
 
     def success():
         seen = {}
+        timeouts = []
 
         def fake(request, timeout):
             seen["request"] = request
+            timeouts.append(timeout)
             return FakeResponse({"choices": [{"message": {"content": '{"ok": true}'}}]})
 
         urllib.request.urlopen = fake
@@ -107,6 +109,7 @@ def main():
             result == '{"ok": true}'
             and seen["request"].headers["Authorization"] == "Bearer test-key"
             and seen["request"].headers["User-agent"] == "orb-agent/1.0"
+            and timeouts == [12]
             and body["model"] == "model-a"
             and body["messages"] == [{"role": "user", "content": "prompt"}]
             and "response_format" in body
@@ -124,9 +127,33 @@ def main():
             return FakeResponse({"choices": [{"message": {"content": "ok"}}]})
 
         urllib.request.urlopen = fake
-        return groq_client.chat("model-a", "prompt", "test-key") == "ok" and len(calls) == 2 and "response_format" not in calls[1]
+        return (
+            groq_client.chat("model-a", "prompt", "test-key") == "ok"
+            and len(calls) == 2
+            and "response_format" not in calls[1]
+            and "reasoning_effort" not in calls[1]
+        )
 
     passed &= run_client_case("chat retries without json mode", retry_without_json_mode)
+
+    def reasoning_effort():
+        bodies = []
+
+        def fake(request, timeout):
+            bodies.append(json.loads(request.data))
+            return FakeResponse({"choices": [{"message": {"content": "ok"}}]})
+
+        urllib.request.urlopen = fake
+        gpt_result = groq_client.chat("openai/gpt-oss-120b", "prompt", "test-key")
+        llama_result = groq_client.chat("llama-3.3-70b-versatile", "prompt", "test-key")
+        return (
+            gpt_result == "ok"
+            and llama_result == "ok"
+            and bodies[0].get("reasoning_effort") == "low"
+            and "reasoning_effort" not in bodies[1]
+        )
+
+    passed &= run_client_case("model reasoning effort", reasoning_effort)
 
     def status_errors():
         for status in (429, 404, 500):
