@@ -725,13 +725,13 @@ async function fetchText(question) {
       signal: AbortSignal.timeout(45000),
     });
     if (res.status === 429) return { error: "quota" };
-    if (!res.ok) return null;
+    if (!res.ok) return { error: "failed" };
     const json = await res.json();
     if (json && json.kind === "text" && json.data && Array.isArray(json.data.beats) && json.data.beats.length) return { data: json.data };
-    return null;
+    return { error: "failed" };
   } catch (err) {
     console.warn("text request failed:", err);
-    return null;
+    return { error: "failed" };
   }
 }
 
@@ -753,11 +753,13 @@ async function ask() {
     setState("thinking");
     const stopCaptions = startThinkingCaptions();
     const text = USE_TEXT && typeof window.playText === "function" ? await fetchText(question) : null;
-    if (text && text.error === "quota") {
+    if (text && text.error) {
       stopCaptions();
       caption.textContent = "";
       caption.classList.remove("hidden");
-      const msg = "Today's free Gemini limit is used up. Try again later.";
+      const msg = text.error === "quota"
+        ? "Too many questions at once. Wait a minute and try again."
+        : "Sorry, I couldn’t get an answer. Check your internet and try again.";
       await Promise.all([revealText(caption, msg, [], nextTextStyle()), speak(msg)]);
       await wait(800);
       return;
