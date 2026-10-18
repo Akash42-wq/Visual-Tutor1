@@ -411,6 +411,7 @@ function growArrow(line, geo, ms) {
   arrowAnims.set(line, requestAnimationFrame(frame));
 }
 
+const ARROW_GAP = 16;
 async function playDiagram(data) {
   const arrowGeo = new Map();
   if (!data || !Array.isArray(data.objects) || !data.objects.length || !Array.isArray(data.steps)) return;
@@ -517,14 +518,28 @@ async function playDiagram(data) {
       const distance = Math.hypot(dx, dy) || 1;
       const ux = dx / distance;
       const uy = dy / distance;
-      const startOffset = Math.min(fromRect.width, fromRect.height) / 2;
-      const endOffset = Math.min(toRect.width, toRect.height) / 2;
+      const fromElement = elements.get(arrow.from);
+      const toElement = elements.get(arrow.to);
+      const edge = (element, rect) => element.classList.contains("circle")
+        ? rect.width / 2
+        : Math.min(
+            (rect.width / 2) / Math.max(Math.abs(ux), 0.001),
+            (rect.height / 2) / Math.max(Math.abs(uy), 0.001),
+          );
+      let gap = ARROW_GAP;
+      let x1 = fromX + ux * (edge(fromElement, fromRect) + gap);
+      let y1 = fromY + uy * (edge(fromElement, fromRect) + gap);
+      let x2 = toX - ux * (edge(toElement, toRect) + gap);
+      let y2 = toY - uy * (edge(toElement, toRect) + gap);
+      if (Math.hypot(x2 - x1, y2 - y1) < 20) {
+        gap = 4;
+        x1 = fromX + ux * (edge(fromElement, fromRect) + gap);
+        y1 = fromY + uy * (edge(fromElement, fromRect) + gap);
+        x2 = toX - ux * (edge(toElement, toRect) + gap);
+        y2 = toY - uy * (edge(toElement, toRect) + gap);
+      }
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.dataset.id = arrow.id;
-      const x1 = fromX + ux * startOffset;
-      const y1 = fromY + uy * startOffset;
-      const x2 = toX - ux * endOffset;
-      const y2 = toY - uy * endOffset;
       arrowGeo.set(arrow.id, { x1, y1, x2, y2 });
       line.setAttribute("x1", x1);
       line.setAttribute("y1", y1);
@@ -877,6 +892,17 @@ document.getElementById("demoDiagram").addEventListener("click", async () => {
     const response = await fetch("diagram-demo.json", { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error(`Diagram demo request failed: ${response.status}`);
     await playDiagram(await response.json());
+  } catch (err) {
+    console.error(err);
+  }
+});
+document.getElementById("demoChain").addEventListener("click", async () => {
+  if (running) return;
+  try {
+    const response = await fetch("http://127.0.0.1:8000/diagram/chain-demo", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Chain demo request failed: ${response.status}`);
+    const json = await response.json();
+    await playDiagram(json.data);
   } catch (err) {
     console.error(err);
   }

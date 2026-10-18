@@ -14,6 +14,7 @@ from pathlib import Path
 
 import director
 import groq_client
+from diagrams import build_chain
 from textgen import build_prompt, parse_plan
 
 load_dotenv()  # reads GEMINI_API_KEY from the .env file
@@ -203,6 +204,23 @@ def diagram(q: Question):
     if not valid:
         raise HTTPException(status_code=500, detail=f"{filename} is missing or invalid")
     return {"kind": kind, "data": data}
+
+@app.get("/diagram/chain-demo")
+def chain_demo():
+    result = build_chain({
+        "diagram": "chain",
+        "shape": "circle",
+        "nodes": ["Head", "Node 2", "Node 3", "Null"],
+        "steps": [
+            {"say": "A linked list is a chain of nodes.", "focus": [0]},
+            {"say": "Each node points to the next one.", "focus": [1]},
+            {"say": "The chain keeps going.", "focus": [2]},
+            {"say": "The last node points to nothing.", "focus": [3]},
+        ],
+    })
+    if result is None:
+        raise HTTPException(status_code=500)
+    return {"kind": "diagram", "data": result}
 
 @app.post("/explain")
 def explain(q: Question):

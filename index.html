@@ -534,6 +534,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
   display: grid;
   place-items: center;
 }
+#diagram-objects .obj.circle { box-sizing: border-box; padding: 0 10px; font-size: clamp(14px, 1.6vw, 24px); line-height: 1.15; overflow-wrap: anywhere; }
 .obj.label {
   border: none;
   background: none;
@@ -651,6 +652,7 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
     <button id="demoArray">Array demo</button>
     <button id="sfxBtn">Sound: on</button>
     <button id="demoText">Text demo</button>
+    <button id="demoChain">Chain demo</button>
   </div>
 
   <button id="micBtn" type="button" aria-pressed="false" aria-label="Turn microphone on" title="Microphone off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"/><path d="M12 17v4M8.5 21h7"/><path class="slash" d="M4 4l16 16"/></svg></button>
