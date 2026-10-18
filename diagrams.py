@@ -180,6 +180,35 @@ def build_diagram(content) -> dict | None:
                 output_objects[end]["type"] = "box"
             if len(links) == 8:
                 break
+        clear_links = []
+        try:
+            scaled = [(x * 1.78, y) for x, y in positions]
+            for start, end in links:
+                ax, ay = scaled[start]
+                bx, by = scaled[end]
+                dx = bx - ax
+                dy = by - ay
+                length_squared = dx * dx + dy * dy
+                blocked = False
+                for index, (cx, cy) in enumerate(scaled):
+                    if index == start or index == end:
+                        continue
+                    if length_squared:
+                        distance_along = ((cx - ax) * dx + (cy - ay) * dy) / length_squared
+                        distance_along = min(1, max(0, distance_along))
+                        near_x = ax + distance_along * dx
+                        near_y = ay + distance_along * dy
+                    else:
+                        near_x = ax
+                        near_y = ay
+                    if math.hypot(cx - near_x, cy - near_y) < 9:
+                        blocked = True
+                        break
+                if not blocked:
+                    clear_links.append((start, end))
+        except Exception:
+            clear_links = links[:]
+        links = clear_links
         arrows = [{"id": f"a{i}", "from": f"n{start}", "to": f"n{end}"} for i, (start, end) in enumerate(links)]
 
         raw_steps = content.get("steps")

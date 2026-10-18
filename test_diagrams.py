@@ -156,7 +156,6 @@ def main():
     passed &= check("linked label becomes box", label_link is not None and label_link["objects"][0]["type"] == "box" and label_link["arrows"] == [
         {"id": "a0", "from": "n0", "to": "n1"},
         {"id": "a1", "from": "n1", "to": "n2"},
-        {"id": "a2", "from": "n2", "to": "n0"},
     ])
     unlinked_label = build_diagram({
         "objects": [{"type": "label", "text": "Note"}, {"text": "A"}, {"text": "B"}],
@@ -164,6 +163,38 @@ def main():
         "steps": [{"say": "A"}, {"say": "B", "focus": [2]}],
     })
     passed &= check("unlinked label stays label", unlinked_label is not None and unlinked_label["objects"][0]["type"] == "label")
+    shortcut_links = build_diagram({
+        "layout": "row",
+        "objects": [{"text": "A"}, {"text": "B"}, {"text": "C"}],
+        "links": [[0, 1], [1, 2], [0, 2]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("row shortcut link dropped", shortcut_links is not None and shortcut_links["arrows"] == [
+        {"id": "a0", "from": "n0", "to": "n1"},
+        {"id": "a1", "from": "n1", "to": "n2"},
+    ])
+    only_shortcut = build_diagram({
+        "layout": "row",
+        "objects": [{"text": "A"}, {"text": "B"}, {"text": "C"}],
+        "links": [[0, 2]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("only row shortcut remains valid", only_shortcut is not None and only_shortcut["arrows"] == [])
+    cycle_links = build_diagram({
+        "layout": "cycle",
+        "objects": [{"text": str(i)} for i in range(4)],
+        "links": [[0, 1], [1, 2], [2, 3], [3, 0]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("cycle links stay", cycle_links is not None and len(cycle_links["arrows"]) == 4)
+    snake_links = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(5)],
+        "links": [[0, 1], [1, 2], [2, 3], [3, 4]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("snake sequential links stay", snake_links is not None and len(snake_links["arrows"]) == 4)
+    passed &= check("arrow ids contiguous", snake_links is not None and [arrow["id"] for arrow in snake_links["arrows"]] == ["a0", "a1", "a2", "a3"])
     eight_steps = build_diagram({
         "objects": [{"text": "A"}, {"text": "B"}],
         "steps": [{"say": f"Step {i}"} for i in range(8)],
