@@ -137,6 +137,14 @@
       if (stopRequested) return;
       for (const beat of clean) {
         if (stopRequested) break;
+        if (current) {
+          if (current.beat.exit === "fade") {
+            current.node.classList.add("out");
+            await waitLocal(250);
+            if (stopRequested) break;
+          }
+          if (current.node.parentNode) current.node.remove();
+        }
         view.classList.toggle("pal", beat.bg === "palette");
         if (beat.bg === "palette" && typeof applyPalette === "function" && typeof nextPalette === "function") {
           applyPalette(nextPalette());
@@ -146,14 +154,6 @@
           void flash.offsetWidth;
           flash.classList.add("go");
         }
-        if (current) {
-          if (current.beat.exit === "fade") {
-            current.node.classList.add("out");
-            await waitLocal(250);
-            if (stopRequested) break;
-          }
-          if (current.node.parentNode) current.node.remove();
-        }
         const node = render(beat);
         if (beat.transition === "fade") node.classList.add("xfade");
         stage.appendChild(node);
@@ -162,7 +162,7 @@
         const talk = speakLocal(beat.say);
         await Promise.all([talk, waitLocal(beat.ms)]);
         if (stopRequested) break;
-        if (beat.exit === "fade") {
+        if (beat === clean[clean.length - 1] && beat.exit === "fade") {
           node.classList.add("out");
           await waitLocal(250);
         }
