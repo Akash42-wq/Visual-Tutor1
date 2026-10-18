@@ -379,8 +379,9 @@ def shapes_demo():
             {"type": "box", "text": "Router"},
             {"type": "circle", "text": "Internet"},
             {"type": "box", "text": "Server"},
-            {"type": "label", "text": "Page"},
+            {"type": "box", "text": "Page"},
         ],
+        "layout": "snake",
         "links": [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]],
         "steps": [
             {"say": "A request starts at the phone.", "focus": [0]},

@@ -1,4 +1,5 @@
 import re
+import math
 
 
 def build_chain(content) -> dict | None:
@@ -97,18 +98,55 @@ def build_diagram(content) -> dict | None:
             objects.append({"type": object_type, "text": text})
 
         n = len(objects)
-        if n <= 4:
+        layout = content.get("layout")
+        valid_counts = {
+            "row": (2, 4),
+            "column": (2, 5),
+            "snake": (4, 6),
+            "hub": (3, 6),
+            "cycle": (3, 6),
+        }
+        if layout not in valid_counts or not valid_counts[layout][0] <= n <= valid_counts[layout][1]:
+            layout = "row" if n <= 4 else "snake"
+
+        if layout == "row":
             positions = [(15 + i * (70 / (n - 1)), 45) for i in range(n)]
-        else:
+        elif layout == "column":
+            positions = [(50, 18 + i * (64 / (n - 1))) for i in range(n)]
+        elif layout == "snake":
             first_count = (n + 1) // 2
-            positions = []
-            for i in range(first_count):
-                x = 50 if first_count == 1 else 15 + i * (70 / (first_count - 1))
-                positions.append((x, 32))
+            positions = [
+                (15 + i * (70 / (first_count - 1)), 32)
+                for i in range(first_count)
+            ]
             second_count = n - first_count
-            for i in range(second_count):
-                x = 50 if second_count == 1 else 15 + i * (70 / (second_count - 1))
-                positions.append((x, 62))
+            positions.extend(
+                (15 + (first_count - 1 - i) * (70 / (first_count - 1)), 62)
+                for i in range(second_count)
+            )
+        else:
+            if layout == "hub":
+                positions = [(50, 45)]
+                count = n - 1
+                positions.extend(
+                    (
+                        50 + 32 * math.cos(math.radians(-90 + k * 360 / count)),
+                        45 + 30 * math.sin(math.radians(-90 + k * 360 / count)),
+                    )
+                    for k in range(count)
+                )
+            else:
+                positions = [
+                    (
+                        50 + 30 * math.cos(math.radians(-90 + k * 360 / n)),
+                        47 + 28 * math.sin(math.radians(-90 + k * 360 / n)),
+                    )
+                    for k in range(n)
+                ]
+        positions = [
+            (round(min(92, max(8, x)), 1), round(min(92, max(8, y)), 1))
+            for x, y in positions
+        ]
         output_objects = [
             {"id": f"n{i}", "type": item["type"], "text": item["text"], "x": positions[i][0], "y": positions[i][1]}
             for i, item in enumerate(objects)
@@ -126,7 +164,14 @@ def build_diagram(content) -> dict | None:
             ):
                 continue
             start, end = raw_link
-            if start == end or not 0 <= start < n or not 0 <= end < n or (start, end) in links:
+            if (
+                start == end
+                or not 0 <= start < n
+                or not 0 <= end < n
+                or objects[start]["type"] == "label"
+                or objects[end]["type"] == "label"
+                or (start, end) in links
+            ):
                 continue
             links.append((start, end))
             if len(links) == 8:

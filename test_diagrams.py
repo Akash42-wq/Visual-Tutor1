@@ -109,6 +109,51 @@ def main():
     diagram_junk = [build_diagram(value) for value in (None, 5, "x", [], {}, {"objects": "x"})]
     passed &= check("diagram junk inputs never raise", all(result is None for result in diagram_junk))
     passed &= check("diagram json serializable", diagram_six is not None and bool(json.dumps(diagram_six)))
+
+    def layout_case(layout, count):
+        result = build_diagram({
+            "layout": layout,
+            "objects": [{"text": f"O{i}"} for i in range(count)],
+            "steps": [{"say": "Start"}, {"say": "End", "focus": [count - 1]}],
+        })
+        positions = [(item["x"], item["y"]) for item in result["objects"]]
+        return result is not None and all(8 <= x <= 92 and 8 <= y <= 92 for x, y in positions) and len(set(positions)) == count
+
+    passed &= check("row layout", layout_case("row", 3))
+    passed &= check("column layout", layout_case("column", 5))
+    passed &= check("snake layout", layout_case("snake", 6))
+    passed &= check("hub layout", layout_case("hub", 5))
+    passed &= check("cycle layout", layout_case("cycle", 5))
+    fallback_layout = build_diagram({
+        "layout": "unknown",
+        "objects": [{"text": "A"}, {"text": "B"}, {"text": "C"}],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("invalid layout fallback", fallback_layout is not None and [item["y"] for item in fallback_layout["objects"]] == [45, 45, 45])
+    wrong_count_layout = build_diagram({
+        "layout": "hub",
+        "objects": [{"text": "A"}, {"text": "B"}],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("wrong layout count fallback", wrong_count_layout is not None and [item["y"] for item in wrong_count_layout["objects"]] == [45, 45])
+    snake_six = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(6)],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("snake reverse second row", snake_six is not None and snake_six["objects"][3]["x"] == snake_six["objects"][2]["x"] and snake_six["objects"][3]["y"] == 62)
+    cycle = build_diagram({
+        "layout": "cycle",
+        "objects": [{"text": str(i)} for i in range(4)],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("cycle starts at top", cycle is not None and cycle["objects"][0]["y"] == min(item["y"] for item in cycle["objects"]))
+    label_link = build_diagram({
+        "objects": [{"type": "label", "text": "Note"}, {"text": "A"}, {"text": "B"}],
+        "links": [[0, 1], [1, 2], [2, 0]],
+        "steps": [{"say": "A"}, {"say": "B", "focus": [2]}],
+    })
+    passed &= check("label link dropped", label_link is not None and label_link["arrows"] == [{"id": "a0", "from": "n1", "to": "n2"}])
     return 0 if passed else 1
 
 

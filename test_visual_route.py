@@ -18,6 +18,7 @@ def valid_reply(fenced=False):
             {"type": "box", "text": "Server"},
             {"type": "box", "text": "Database"},
         ],
+        "layout": "row",
         "links": [[0, 1], [1, 2]],
         "steps": [
             {"say": "The browser asks.", "focus": [0]},
