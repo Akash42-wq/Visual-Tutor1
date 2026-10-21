@@ -142,6 +142,19 @@ def main():
         "steps": [{"say": "A"}, {"say": "B"}],
     })
     passed &= check("snake reverse second row", snake_six is not None and snake_six["objects"][3]["x"] == snake_six["objects"][2]["x"] and snake_six["objects"][3]["y"] == 62)
+    snake_four = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(4)],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    snake_five = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(5)],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("snake four alignment", snake_four is not None and [item["x"] for item in snake_four["objects"]] == [15, 85, 85, 15])
+    passed &= check("snake five alignment", snake_five is not None and [item["x"] for item in snake_five["objects"]] == [15, 50, 85, 85, 50])
+    passed &= check("snake six alignment", snake_six is not None and [item["x"] for item in snake_six["objects"]] == [15, 50, 85, 85, 50, 15])
     cycle = build_diagram({
         "layout": "cycle",
         "objects": [{"text": str(i)} for i in range(4)],
@@ -195,6 +208,28 @@ def main():
     })
     passed &= check("snake sequential links stay", snake_links is not None and len(snake_links["arrows"]) == 4)
     passed &= check("arrow ids contiguous", snake_links is not None and [arrow["id"] for arrow in snake_links["arrows"]] == ["a0", "a1", "a2", "a3"])
+    snake_diagonal = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(5)],
+        "links": [[0, 1], [1, 2], [2, 3], [3, 4], [0, 4]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("snake diagonal dropped", snake_diagonal is not None and len(snake_diagonal["arrows"]) == 4 and
+                    {"from": "n0", "to": "n4"} not in [{key: arrow[key] for key in ("from", "to")} for arrow in snake_diagonal["arrows"]])
+    snake_vertical = build_diagram({
+        "layout": "snake",
+        "objects": [{"text": str(i)} for i in range(5)],
+        "links": [[2, 3]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("snake vertical link stays", snake_vertical is not None and snake_vertical["arrows"] == [{"id": "a0", "from": "n2", "to": "n3"}])
+    hub_links = build_diagram({
+        "layout": "hub",
+        "objects": [{"text": str(i)} for i in range(4)],
+        "links": [[0, 1], [0, 2], [0, 3]],
+        "steps": [{"say": "A"}, {"say": "B"}],
+    })
+    passed &= check("hub links stay", hub_links is not None and len(hub_links["arrows"]) == 3)
     eight_steps = build_diagram({
         "objects": [{"text": "A"}, {"text": "B"}],
         "steps": [{"say": f"Step {i}"} for i in range(8)],

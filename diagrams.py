@@ -209,6 +209,16 @@ def build_diagram(content) -> dict | None:
         except Exception:
             clear_links = links[:]
         links = clear_links
+        if layout in ("snake", "row"):
+            try:
+                links = [
+                    (start, end)
+                    for start, end in links
+                    if positions[start][1] == positions[end][1]
+                    or abs(positions[start][0] - positions[end][0]) <= 5
+                ]
+            except Exception:
+                pass
         arrows = [{"id": f"a{i}", "from": f"n{start}", "to": f"n{end}"} for i, (start, end) in enumerate(links)]
 
         raw_steps = content.get("steps")
