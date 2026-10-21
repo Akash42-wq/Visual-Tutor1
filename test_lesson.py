@@ -4,7 +4,7 @@ import os
 import backend
 import groq_client
 from fastapi import HTTPException
-from lesson import parse_lesson
+from lesson import BLUEPRINTS, build_lesson_prompt, parse_lesson, pick_blueprint
 
 
 QUESTION = backend.Question(question="How does email travel?", history=[])
@@ -231,6 +231,40 @@ def main():
         return "single plain figure" in prompt and "never an equation or a formula" in prompt and len(prompt) < 5500
 
     passed &= run_case("number prompt rule", number_prompt)
+    def blueprint_selection():
+        return pick_blueprint("cats vs dogs") == "compare"
+
+    passed &= run_case("compare blueprint", blueprint_selection)
+
+    def blueprint_no_repeat():
+        names = [pick_blueprint("general topic") for _ in range(20)]
+        return all(left != right for left, right in zip(names, names[1:]))
+
+    passed &= run_case("blueprint no immediate repeat", blueprint_no_repeat)
+
+    def blueprint_reachability():
+        names = {pick_blueprint("general topic") for _ in range(100)}
+        return set(BLUEPRINTS) <= names
+
+    passed &= run_case("all blueprints reachable", blueprint_reachability)
+
+    def blueprint_junk():
+        return all(pick_blueprint(value) in BLUEPRINTS for value in (None, 5, ""))
+
+    passed &= run_case("blueprint junk input", blueprint_junk)
+
+    def blueprint_prompt():
+        prompt = build_lesson_prompt("x" * 5000)
+        return (
+            "STRUCTURE for this lesson" in prompt
+            and prompt.count("Worked example:") == 1
+            and len(prompt) < 5500
+            and "Never put two diagrams in a row." in prompt
+            and "ends with a conclusion beat." in prompt
+            and prompt.rfind("Student message:") > prompt.rfind("Rules above")
+        )
+
+    passed &= run_case("blueprint prompt", blueprint_prompt)
     passed &= run_case("parser junk", lambda: all(parse_lesson(value) is None for value in (None, 5, "x", "{", "[]", '{"parts":5}')))
     return 0 if passed else 1
 
