@@ -3,8 +3,9 @@ import os
 
 import backend
 import groq_client
+import lesson
 from fastapi import HTTPException
-from lesson import BLUEPRINTS, build_lesson_prompt, parse_lesson, pick_blueprint
+from lesson import BLUEPRINTS, HOOKS, build_lesson_prompt, parse_lesson, pick_blueprint, pick_hook
 
 
 QUESTION = backend.Question(question="How does email travel?", history=[])
@@ -265,6 +266,46 @@ def main():
         )
 
     passed &= run_case("blueprint prompt", blueprint_prompt)
+    def blueprint_sizes():
+        original_picker = lesson.pick_blueprint
+        try:
+            for name in BLUEPRINTS:
+                lesson.pick_blueprint = lambda question, selected=name: selected
+                prompt = build_lesson_prompt("x" * 5000)
+                if "SIZE for this lesson:" not in prompt or len(prompt) >= 5500:
+                    return False
+            return True
+        finally:
+            lesson.pick_blueprint = original_picker
+
+    passed &= run_case("all blueprint sizes", blueprint_sizes)
+
+    def specific_sizes():
+        original_picker = lesson.pick_blueprint
+        try:
+            lesson.pick_blueprint = lambda question: "quick"
+            quick = build_lesson_prompt("topic")
+            lesson.pick_blueprint = lambda question: "deep"
+            deep = build_lesson_prompt("topic")
+            return "3 parts" in quick and "6 to 8 steps" not in quick and "5 parts" in deep
+        finally:
+            lesson.pick_blueprint = original_picker
+
+    passed &= run_case("specific blueprint sizes", specific_sizes)
+
+    def hook_selection():
+        hooks = [pick_hook() for _ in range(20)]
+        return (
+            all(left != right for left, right in zip(hooks, hooks[1:]))
+            and set(HOOKS) <= set(hooks)
+        )
+
+    passed &= run_case("hook selection", hook_selection)
+
+    def hook_prompt():
+        return "FIRST BEAT STYLE:" in build_lesson_prompt("topic")
+
+    passed &= run_case("hook prompt", hook_prompt)
     passed &= run_case("parser junk", lambda: all(parse_lesson(value) is None for value in (None, 5, "x", "{", "[]", '{"parts":5}')))
     return 0 if passed else 1
 

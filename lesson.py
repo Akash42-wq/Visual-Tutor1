@@ -8,14 +8,23 @@ from textgen import parse_plan
 
 
 BLUEPRINTS = {
-    "classic": "Part 1 text with a hook then big idea, then a diagram, then text with a term or contrast, then a final text part ending in a conclusion.",
-    "diagramfirst": "Part 1 text with ONE hook beat, part 2 a diagram, then text, then a final text part ending in a conclusion.",
-    "compare": "Centre the lesson on a contrast beat; use a column diagram or two boxes, with 3 to 4 parts.",
-    "exampleled": "Use a hook, then a text part with an example beat, then a diagram showing how it works, then a conclusion.",
-    "deep": "Use 5 parts with two diagrams separated by text.",
-    "quick": "Use 3 parts, 2 to 3 beats per text part, and one diagram with 5 steps.",
+    "classic": {"instruction": "Part 1 text with a hook then big idea, then a diagram, then text with a term or contrast, then a final text part ending in a conclusion.", "limits": {"parts": 4, "beats": "3 to 4", "shapes": "4 to 6", "steps": "6 to 8"}},
+    "diagramfirst": {"instruction": "Part 1 text with ONE hook beat, part 2 a diagram, then text, then a final text part ending in a conclusion.", "limits": {"parts": 4, "beats": "1 in part 1, then 3", "shapes": "4 to 5", "steps": "6 to 7"}},
+    "compare": {"instruction": "Centre the lesson on a contrast beat; use a column diagram or two boxes, with 3 to 4 parts.", "limits": {"parts": 3, "beats": "2 to 3", "shapes": "2 to 4", "steps": "4 to 5"}},
+    "exampleled": {"instruction": "Use a hook, then a text part with an example beat, then a diagram showing how it works, then a conclusion.", "limits": {"parts": 4, "beats": "2 to 3", "shapes": "3 to 5", "steps": "5 to 6"}},
+    "deep": {"instruction": "Use 5 parts with two diagrams separated by text.", "limits": {"parts": 5, "beats": "2 to 3", "shapes": "4 to 6 in the first diagram and 3 to 4 in the second", "steps": "6 to 8 in the first and 4 to 5 in the second"}},
+    "quick": {"instruction": "Use 3 parts, 2 to 3 beats per text part, and one diagram with 5 steps.", "limits": {"parts": 3, "beats": "2", "shapes": "3 to 4", "steps": "4 to 5"}},
 }
 _last = None
+HOOKS = [
+    "open with a question",
+    "open with a surprising fact you are sure of",
+    "open with a tiny everyday scenario",
+    "open with a bold one-line claim",
+    "open by naming a common misconception",
+]
+_last_hook = None
+_hook_pool = []
 
 
 def pick_blueprint(question):
@@ -39,6 +48,21 @@ def pick_blueprint(question):
     except Exception:
         _last = "classic"
         return "classic"
+
+
+def pick_hook():
+    global _last_hook, _hook_pool
+    try:
+        if not _hook_pool:
+            _hook_pool = [hook for hook in HOOKS if hook != _last_hook]
+            random.shuffle(_hook_pool)
+        hook = _hook_pool.pop()
+        _last_hook = hook
+        return hook
+    except Exception:
+        _last_hook = HOOKS[0]
+        _hook_pool = []
+        return HOOKS[0]
 
 
 def _ascii(text):
@@ -84,17 +108,28 @@ def build_lesson_prompt(question, history_block=""):
     history = history_block if isinstance(history_block, str) else ""
     name = pick_blueprint(question)
     print("Lesson blueprint:", name)
-    blueprint = BLUEPRINTS[name]
+    blueprint_data = BLUEPRINTS[name]
+    blueprint = blueprint_data["instruction"]
+    limits = blueprint_data["limits"]
+    size = (
+        f"SIZE for this lesson: {limits['parts']} parts; text parts have "
+        f"{limits['beats']} beats; diagrams have {limits['shapes']} shapes and "
+        f"{limits['steps']} steps."
+    )
+    hook = pick_hook()
+    print("Lesson hook:", hook)
     worked_example = (
     '{"title":"Email travel","parts":[{"type":"text","beats":[{"say":"Email travels through several services before reaching its intended reader.","show":"EMAIL TRAVEL","role":"hook","emphasis":["EMAIL"]},{"say":"Each service handles one part of the delivery journey carefully.","show":"Delivery journey","role":"claim","emphasis":["delivery"]},{"say":"A message needs a sender and destination before it can travel.","show":"Sender and destination","role":"example","emphasis":["sender"]}]},{"type":"diagram","layout":"row","objects":[{"type":"box","text":"Sender"},{"type":"box","text":"Mailbox"},{"type":"box","text":"Reader"},{"type":"box","text":"Message"}],"links":[[0,1],[1,2]],"steps":[{"say":"The sender creates the message and chooses its destination first.","focus":[0,3]},{"say":"The mailbox receives the message for temporary storage during delivery.","focus":[1]},{"say":"The reader opens the stored message after delivery completes successfully.","focus":[2]},{"say":"The message connects sender, mailbox, and reader in sequence.","focus":[3]},{"say":"Each arrow represents one real delivery step between services.","focus":[0,1]},{"say":"The route finishes when the reader can open the message.","focus":[2,3]}]},{"type":"text","beats":[{"say":"A mailbox stores messages safely until readers retrieve them later.","show":"Mailbox: stored messages","role":"term","emphasis":["Mailbox"]},{"say":"Sender vs reader describes who begins and ends email delivery.","show":"Sender vs reader","role":"contrast","emphasis":["reader"]},{"say":"Email succeeds when the message reaches its intended reader.","show":"Successful delivery","role":"conclusion","emphasis":["delivery"]}]}]}'
         if name in ("classic", "deep", "quick")
         else
     '{"title":"Bread rising","parts":[{"type":"text","beats":[{"say":"Bread rises because yeast changes sugars into gases inside dough.","show":"BREAD RISING","role":"hook","emphasis":["BREAD"]},{"say":"The dough traps those gases, making its structure expand.","show":"Trapped gas","role":"claim","emphasis":["gases"]}]},{"type":"diagram","layout":"row","objects":[{"type":"box","text":"Yeast"},{"type":"box","text":"Sugar"},{"type":"box","text":"Gas"},{"type":"box","text":"Dough"}],"links":[[0,1],[1,2],[2,3]],"steps":[{"say":"Yeast begins the process by using available sugar in dough.","focus":[0,1]},{"say":"Sugar provides energy for yeast to release gas gradually.","focus":[1,2]},{"say":"The released gas becomes trapped in the dough structure.","focus":[2,3]},{"say":"Trapped gas makes the dough expand before baking begins.","focus":[3]}]},{"type":"text","beats":[{"say":"This process explains why warm dough can become light and airy.","show":"Rising dough","role":"term","emphasis":["Rising"]},{"say":"Bread is ready when its expanded structure holds after baking.","show":"Finished bread","role":"conclusion","emphasis":["ready"]}]}]}'
     )
-    prompt_prefix = """You write a short animated lesson as 3 to 5 PARTS. Reply with ONLY raw JSON: {"title": str (max 5 words), "parts": [ ... ]}.
-A text part is {"type":"text","beats":[{"say","show","role","emphasis"}]}, with 3 to 4 beats. Every say is a full sentence explaining something in 10 to 20 words, never under 8 words. show is 2 to 6 words, shorter than say. role is one of hook, claim, term, contrast, number, example, conclusion. emphasis is [] or one word from show. For term, show is "RealWord: short meaning" using the actual word, never the literal word "Term"; say explains it normally and does not repeat that format. For contrast, show is "RealThing vs RealThing" with the two actual names; say explains the difference in a full sentence. For example, show is "a | b | c" with 2 to 4 real items; never use example for a plain claim. Number is only a well-known true fact; if unsure, use contrast or example. The number role is only for a single plain figure like "40% faster", never an equation or a formula. Across the whole lesson use at least two different roles from term, contrast, number, example. Make about 14 to 18 spoken sentences overall.
-A diagram part is {"type":"diagram","layout":"row|column|snake|hub|cycle","objects":[{"type":"circle|box|label","text":str}],"links":[[from,to]],"steps":[{"say":str,"focus":[int]}]}, with 4 to 6 shapes (text max 14 characters), at most 8 links, and 6 to 8 steps. Every important input, main thing, and output mentioned by steps is its own shape, and every shape is highlighted in at least one step. Each step's say is ONE sentence of 10 to 20 words that teaches one NEW fact. Never highlight the same shape in two steps in a row. Steps 1 to 4 each reveal a new shape or arrow. Inputs, parts and outputs in a process must be circles or boxes, never a label; use label only for a short note with no arrows. Order shapes as inputs, main thing, outputs. Layout: use hub ONLY when one central thing really connects with arrows to all the others; use row or snake for inputs, then a thing, then outputs, or for steps; column for layers; cycle for repeats. Arrows only where something really leads to something else.
+    prompt_prefix = """You write an animated lesson in PARTS. Reply with ONLY raw JSON: {"title": str (max 5 words), "parts": [ ... ]}.
+A text part is {"type":"text","beats":[{"say","show","role","emphasis"}]}. Every say is a full sentence explaining something in 10 to 20 words, never under 8 words. show is 2 to 6 words, shorter than say. role is one of hook, claim, term, contrast, number, example, conclusion. emphasis is [] or one word from show. For term, show is "RealWord: short meaning" using the actual word, never the literal word "Term"; say explains it normally and does not repeat that format. For contrast, show is "RealThing vs RealThing" with the two actual names; say explains the difference in a full sentence. For example, show is "a | b | c" with 2 to 4 real items; never use example for a plain claim. Number is only a well-known true fact; if unsure, use contrast or example. The number role is only for a single plain figure like "40% faster", never an equation or a formula. Across the whole lesson use at least two different roles from term, contrast, number, example.
+A diagram part is {"type":"diagram","layout":"row|column|snake|hub|cycle","objects":[{"type":"circle|box|label","text":str}],"links":[[from,to]],"steps":[{"say":str,"focus":[int]}]}. Every important input, main thing, and output mentioned by steps is its own shape, and every shape is highlighted in at least one step. Each step's say is ONE sentence of 10 to 20 words that teaches one NEW fact. Never highlight the same shape in two steps in a row. Steps 1 to 4 each reveal a new shape or arrow. Inputs, parts and outputs in a process must be circles or boxes, never a label; use label only for a short note with no arrows. Order shapes as inputs, main thing, outputs. Layout: use hub ONLY when one central thing really connects with arrows to all the others; use row or snake for inputs, then a thing, then outputs, or for steps; column for layers; cycle for repeats. Arrows only where something really leads to something else.
 STRUCTURE for this lesson: """ + blueprint + """
+""" + size + """
+FIRST BEAT STYLE: """ + hook + """
 The last part is text and ends with a conclusion beat. Never put two diagrams in a row. Use at least one diagram.
 Never invent statistics, dates or quotes. Never write coordinates. No emoji. Use plain ASCII only: write CO2, H2O and O2 without subscripts, use a normal hyphen, and use no arrows or special symbols in show or say.
 Worked example: """ + worked_example + """
