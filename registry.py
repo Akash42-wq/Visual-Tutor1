@@ -19,6 +19,12 @@ ENTRIES = {
         "slide": {"kind": "enter", "use": "two sides slide in from opposite edges", "fits": ["split"]},
         "countup": {"kind": "enter", "use": "number counts up from zero", "fits": ["stat"]},
         "lines": {"kind": "enter", "use": "items appear one after another", "fits": ["lines"]},
+        "wipe": {"kind": "enter", "use": "text revealed left to right; calm explanations", "fits": ["stack", "word", "term"]},
+        "flip": {"kind": "enter", "use": "flips in like a card", "fits": ["word", "stack", "term"]},
+        "swing": {"kind": "enter", "use": "swings in from the side", "fits": ["word", "stack"]},
+        "glitch": {"kind": "enter", "use": "brief digital jitter then settles; surprising or technical ideas", "fits": ["word", "stack"]},
+        "bounce": {"kind": "enter", "use": "springy pop; friendly or playful", "fits": ["word", "stack", "term"]},
+        "drift": {"kind": "enter", "use": "slow gentle push-in while visible; quiet or abstract ideas", "fits": ["word", "stack", "term"]},
     },
     "transition": {
         "cut": {"kind": "transition", "use": "instant hard cut; the default"},

@@ -13,7 +13,7 @@ def check(name, condition):
 
 def main():
     passed = True
-    passed &= check("entry counts", len(registry.keys("layout")) == 6 and len(registry.keys("enter")) == 11 and len(registry.keys("transition")) == 3)
+    passed &= check("entry counts", len(registry.keys("layout")) == 6 and len(registry.keys("enter")) == 17 and len(registry.keys("transition")) == 3)
     all_entries = [entry for group in registry.ENTRIES.values() for entry in group.items()]
     passed &= check("entry names and descriptions", all(re.fullmatch(r"[a-z]+", key) and entry["use"] and len(entry["use"]) <= 90 for key, entry in all_entries))
     passed &= check("enter fits", all(entry["fits"] and all(registry.is_valid("layout", layout) for layout in entry["fits"]) for entry in registry.ENTRIES["enter"].values()))

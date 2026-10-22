@@ -1,4 +1,5 @@
 import json
+import registry
 
 from director import VOCAB, compile
 
@@ -61,6 +62,44 @@ def main():
     ))
     passed &= check("json serializable", bool(json.dumps(result)))
     passed &= check("seeded deterministic", compile(beats, seed=7) == compile(beats, seed=7))
+
+    reach_beats = [
+        {"say": "hook beat", "show": "Hook", "role": "hook"},
+        {"say": "claim beat", "show": "Claim text here", "role": "claim"},
+        {"say": "term beat", "show": "Concept: meaning", "role": "term"},
+        {"say": "contrast beat", "show": "Left vs Right", "role": "contrast"},
+        {"say": "number beat", "show": "50% increase", "role": "number"},
+        {"say": "example beat", "show": "alpha | beta | gamma", "role": "example"},
+        {"say": "conclusion beat", "show": "Final wrap up", "role": "conclusion"},
+    ]
+    seen_enters = set()
+    for s in range(200):
+        for item in compile(reach_beats, seed=s):
+            seen_enters.add(item["enter"])
+    passed &= check("all 17 enters reachable", len(seen_enters) == 17 and seen_enters == set(registry.keys("enter")))
+
+    variety_beats = [
+        {"say": f"Beat {i} explaining a point clearly", "show": f"Point {i}", "role": role}
+        for i, role in enumerate(["hook", "claim", "claim", "term", "claim", "claim", "claim", "conclusion"])
+    ]
+    no_back_to_back = True
+    max_two_in_five = True
+    valid_fits = True
+    for s in range(200):
+        res = compile(variety_beats, seed=s)
+        if any(a["enter"] == b["enter"] for a, b in zip(res, res[1:])):
+            no_back_to_back = False
+        for i in range(len(res) - 4):
+            window = [b["enter"] for b in res[i:i + 5]]
+            if any(window.count(e) > 2 for e in set(window)):
+                max_two_in_five = False
+        if any(not registry.fits(b["enter"], b["layout"]) for b in res):
+            valid_fits = False
+
+    passed &= check("no enter repeats back to back", no_back_to_back)
+    passed &= check("no enter more than twice in window of 5", max_two_in_five)
+    passed &= check("every enter valid for layout", valid_fits)
+    passed &= check("deterministic for fixed seed", compile(variety_beats, seed=42) == compile(variety_beats, seed=42))
     return 0 if passed else 1
 
 

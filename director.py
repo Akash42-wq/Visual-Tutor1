@@ -139,9 +139,9 @@ def _hinted_layout(text, hint):
 
 def _enter_pool(role, layout):
     if role == "hook":
-        return ["slam", "punch", "drop"]
+        return ["slam", "punch", "drop", "glitch", "bounce", "swing"]
     if role == "term":
-        return ["blur", "rise", "scale"]
+        return ["blur", "rise", "scale", "flip", "drift", "bounce"]
     if layout == "split":
         return ["slide"]
     if layout == "stat":
@@ -149,10 +149,10 @@ def _enter_pool(role, layout):
     if layout == "lines":
         return ["lines"]
     if role == "conclusion":
-        return ["fade", "blur"]
+        return ["fade", "blur", "drift", "wipe"]
     if layout == "stack" or role == "claim":
-        return ["rise", "words", "blur"]
-    return ["punch", "rise"]
+        return ["rise", "words", "blur", "wipe", "flip", "drift", "swing"]
+    return ["punch", "rise", "swing"]
 
 
 def _safe_int(value):
@@ -202,16 +202,27 @@ def compile(beats, seed=None) -> list[dict]:
                 layout, lines = "word", [show]
             speech = len(say.split()) * 380
             reading = 600 + len(show.split()) * 300
-            ms = max(1000, min(8000, max(speech, reading)))
+            computed_ms = max(speech, reading) * rng.uniform(0.95, 1.10)
+            ms = max(1000, min(8000, round(computed_ms)))
             pool = _enter_pool(role, layout)
+            valid_pool = [entry for entry in pool if fits(entry, layout)]
+            if not valid_pool:
+                valid_pool = [entry for entry in keys("enter") if fits(entry, layout)]
+            recent_4 = [item["enter"] for item in decided[-4:]]
             enter_hint = raw.get("enter")
             if is_valid("enter", enter_hint) and fits(enter_hint, layout):
-                recent_enters = [item["enter"] for item in decided[-2:]]
-                enter = enter_hint if recent_enters != [enter_hint, enter_hint] else None
+                if enter_hint != previous_enter and recent_4.count(enter_hint) < 2:
+                    enter = enter_hint
+                else:
+                    enter = None
             else:
                 enter = None
             if enter is None:
-                choices = [entry for entry in pool if entry != previous_enter] or pool
+                choices = [entry for entry in valid_pool if entry != previous_enter and recent_4.count(entry) < 2]
+                if not choices:
+                    choices = [entry for entry in valid_pool if entry != previous_enter]
+                if not choices:
+                    choices = valid_pool
                 enter = rng.choice(choices)
             previous_enter = enter
             exit_name = "fade" if ms >= 1500 and role != "hook" else "cut"
