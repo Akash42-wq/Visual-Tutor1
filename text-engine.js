@@ -1,7 +1,7 @@
 (() => {
   const VOCAB = {
     layouts: ["word", "stack", "term", "split", "stat", "lines"],
-    enters: ["slam", "punch", "drop", "rise", "words", "blur", "scale", "slide", "countup", "lines", "fade"],
+    enters: ["slam", "punch", "drop", "rise", "words", "blur", "scale", "slide", "countup", "lines", "fade", "wipe", "flip", "swing", "glitch", "bounce", "drift"],
     exits: ["cut", "fade"],
     transitions: ["cut", "flash", "fade"],
     bgs: ["black", "palette"],

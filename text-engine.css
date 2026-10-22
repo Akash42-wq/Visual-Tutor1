@@ -28,6 +28,12 @@
 #text-view [data-enter="countup"] { animation: tFade 0.3s ease-out both; }
 #text-view [data-enter="lines"] .tl { animation: tRise 0.45s ease-out both; animation-delay: calc(var(--i) * 260ms); }
 #text-view [data-enter="fade"] { animation: tFade 0.6s ease-out both; }
+#text-view [data-enter="wipe"] { animation: tWipe 0.7s ease-out both; }
+#text-view [data-enter="flip"] { transform-origin: top center; animation: tFlip 0.6s ease-out both; }
+#text-view [data-enter="swing"] { animation: tSwing 0.55s ease-out both; }
+#text-view [data-enter="glitch"] { animation: tGlitch 0.4s ease-out both; }
+#text-view [data-enter="bounce"] { animation: tBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+#text-view [data-enter="drift"] { animation: tFade 0.4s ease-out both, tDrift 8s linear forwards; }
 #text-view #text-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 #text-view #text-flash.go { animation: tFlash 0.14s ease-out; }
 @keyframes tFade { from { opacity: 0; } to { opacity: 1; } }
@@ -42,7 +48,19 @@
 @keyframes tSlideLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes tSlideRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes tDivider { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes tWipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes tFlip { from { opacity: 0; transform: perspective(600px) rotateX(-90deg); } to { opacity: 1; transform: perspective(600px) rotateX(0deg); } }
+@keyframes tSwing { from { opacity: 0; transform: translateX(-40px) rotate(-8deg); } 70% { transform: translateX(4px) rotate(1.5deg); } to { opacity: 1; transform: translateX(0) rotate(0deg); } }
+@keyframes tGlitch { 0% { opacity: 0; transform: translateX(-6px); text-shadow: -2px 0 #00ffff, 2px 0 #ff0055; } 20% { opacity: 1; transform: translateX(5px); text-shadow: 2px 0 #00ffff, -2px 0 #ff0055; } 40% { transform: translateX(-4px); text-shadow: -1px 0 #00ffff, 1px 0 #ff0055; } 60% { transform: translateX(3px); text-shadow: 1px 0 #00ffff, -1px 0 #ff0055; } 80% { transform: translateX(-1px); text-shadow: none; } 100% { opacity: 1; transform: translateX(0); text-shadow: none; } }
+@keyframes tBounce { from { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.12); } to { opacity: 1; transform: scale(1); } }
+@keyframes tDrift { from { transform: scale(0.96); } to { transform: scale(1.02); } }
 @media (prefers-reduced-motion: reduce) {
   #text-view [data-enter] { animation-name: tFade; }
   #text-view [data-enter="words"] .tw, #text-view [data-enter="lines"] .tl { animation-name: tFade; }
+  #text-view [data-enter="wipe"],
+  #text-view [data-enter="flip"],
+  #text-view [data-enter="swing"],
+  #text-view [data-enter="glitch"],
+  #text-view [data-enter="bounce"],
+  #text-view [data-enter="drift"] { animation: tFade 0.4s ease-out both; clip-path: none; transform: none; text-shadow: none; }
 }
