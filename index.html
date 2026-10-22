@@ -519,6 +519,15 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
 }
 #diagram-objects .obj.visible { opacity: 1; }
 #diagram-objects .obj.on { box-shadow: 0 0 28px var(--accent); }
+#diagram-view[data-motion="fade"] #diagram-objects .obj.visible { opacity: 1; }
+#diagram-view[data-motion="pop"] #diagram-objects .obj.visible { animation: dPop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+#diagram-view[data-motion="rise"] #diagram-objects .obj.visible { animation: dRise 0.5s ease-out both; }
+#diagram-view[data-motion="drop"] #diagram-objects .obj.visible { animation: dDrop 0.5s ease-out both; }
+#diagram-view[data-motion="grow"] #diagram-objects .obj.visible { animation: dGrow 0.5s ease-out both; }
+@keyframes dPop { 0% { opacity: 0; scale: 0.6; } 70% { opacity: 1; scale: 1.06; } 100% { opacity: 1; scale: 1; } }
+@keyframes dRise { from { opacity: 0; translate: 0 24px; } to { opacity: 1; translate: 0 0; } }
+@keyframes dDrop { from { opacity: 0; translate: 0 -30px; } to { opacity: 1; translate: 0 0; } }
+@keyframes dGrow { from { opacity: 0; scale: 0.3; } to { opacity: 1; scale: 1; } }
 .obj.box {
   padding: 14px 22px;
   border: 1px solid var(--accent);
@@ -605,7 +614,19 @@ body.takeover .caption { opacity: 0; pointer-events: none; }
 #micBtn.busy { opacity: 0.55; }
 #micBtn.busy::after { animation: none; }
 @keyframes micPulse { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.7); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #micBtn.on::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #micBtn.on::after { animation: none; }
+  #diagram-view[data-motion="fade"] #diagram-objects .obj.visible,
+  #diagram-view[data-motion="pop"] #diagram-objects .obj.visible,
+  #diagram-view[data-motion="rise"] #diagram-objects .obj.visible,
+  #diagram-view[data-motion="drop"] #diagram-objects .obj.visible,
+  #diagram-view[data-motion="grow"] #diagram-objects .obj.visible {
+    animation: none;
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
 .orb[data-state="listening"] { scale: calc(1 + var(--level) * 0.16); filter: brightness(calc(1 + var(--level) * 0.5)) saturate(1.2); }
 #array-view { position: fixed; inset: 0; z-index: 6; background: rgba(5,10,26,0.94); opacity: 0; pointer-events: none; overflow: hidden; transition: opacity 0.5s ease; }
 #array-view.show { opacity: 1; }

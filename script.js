@@ -63,6 +63,7 @@ function makePicker(items, runLength) {
 
 const nextTextStyle = makePicker(["type", "rise", "blur", "glow"], 5); // once per answer
 const nextBeatTransition = makePicker(["punch", "drop", "flash"], 2);
+const nextDiagramMotion = makePicker(["fade", "pop", "rise", "drop", "grow"], 1);
 const CAMERAS = {
   pan:      { rx: 0,   ry: 0,  dz: 0,    t: 1.3 },
   tilt:     { rx: 14,  ry: 16, dz: 0,    t: 1.3 },
@@ -461,6 +462,10 @@ async function playDiagram(data, opts) {
   document.body.classList.add("takeover");
   diagramSvg.replaceChildren();
   diagramObjects.replaceChildren();
+  const motion = nextDiagramMotion();
+  diagramView.setAttribute("data-motion", motion);
+  console.log("diagram motion:", motion);
+
   try {
     for (const object of objects) {
       const element = document.createElement("div");
@@ -589,9 +594,11 @@ async function playDiagram(data, opts) {
     arrowAnims.forEach((rafId) => cancelAnimationFrame(rafId)); arrowAnims.clear();
     if (window.speechSynthesis) speechSynthesis.cancel();
     diagramView.classList.remove("show");
+    diagramView.removeAttribute("data-motion");
     await wait(500);
     diagramSvg.replaceChildren();
     diagramObjects.replaceChildren();
+
     diagramSay.textContent = "";
     if (!(opts && opts.keep)) {
       document.body.classList.remove("takeover");
