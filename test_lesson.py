@@ -174,12 +174,12 @@ def main():
             len(prompt) < 5500
             and "diagram" in prompt.lower()
             and "hook" in prompt.lower()
-            and "3 to 4 beats" in prompt
+            and "size for this lesson" in prompt.lower()
             and "never a label" in prompt.lower()
             and "ascii" in prompt.lower()
             and "10 to 20 words" in prompt
             and "never the literal word" in prompt.lower()
-            and "4 to 6 shapes" in prompt
+            and "shapes" in prompt.lower()
             and "same shape" in prompt.lower()
             and prompt.rfind("student message") > prompt.lower().rfind("rules")
         )
